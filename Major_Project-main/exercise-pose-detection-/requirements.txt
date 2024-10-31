@@ -1,0 +1,10 @@
+pandas
+numpy 
+mediapipe 
+scikit-learn
+streamlit
+tensorflow
+streamlit_option_menu
+matplotlib
+opencv
+math
