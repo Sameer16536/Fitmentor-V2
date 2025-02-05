@@ -46,11 +46,13 @@ const apiCall = async ({
 export const APIUtility = {
 
   loginUser: (body) =>
-    apiCall({
-      method: "POST",
-      url: "/api/auth/login/",
-      data: body,
-    }),
+    axios.post(`${IP_ADDRESS_BACKEND}/api/auth/login/`, body, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then(response => response.data),
+
+
 
 
 
