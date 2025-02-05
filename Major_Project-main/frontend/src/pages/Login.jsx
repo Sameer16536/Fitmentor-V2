@@ -21,23 +21,27 @@ const Login = () => {
         e.preventDefault();
         const payload = {
             email: formData.email,
-
-            password:formData.password
-        }
+            password: formData.password
+        };
+        
         try {
-            const response = await APIUtility.loginUser(payload)
-            console.log("Login karne peeeeeeeeeeee-------",response)
-  
-            if (!response.token) {
-                throw new Error("Sign-in failed!");
+            const response = await APIUtility.loginUser(payload);
+            console.log("Login response:", response);
+
+            if (!response.access) {
+                throw new Error("Invalid credentials");
             }
-            localStorage.setItem("authToken", response.token);
             
+            localStorage.setItem("authToken", response.access);
+            
+            if (response.user) {
+                localStorage.setItem("user", JSON.stringify(response.user));
+            }
 
             navigate("/dashboard");
-            alert("Sign-in successful!");
         } catch (error) {
-            alert(error.response?.data?.message || "Sign-in failed!");
+            console.error("Login error:", error);
+            alert(error.response?.data?.error || error.message || "Invalid credentials");
         }
     };
 

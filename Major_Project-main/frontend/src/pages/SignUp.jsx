@@ -40,9 +40,10 @@ const SignUpPage = () => {
                 throw new Error("Sign-up failed!");
             }
     
-            localStorage.setItem("authToken", response.token);
+            localStorage.setItem("authToken", response.access);
             navigate("/dashboard");
             // alert("Sign-up successful!");
+
         } catch (error) {
             console.error("Sign-up error:", error);
             setError(error.response?.data?.error || "Sign-up failed!");
