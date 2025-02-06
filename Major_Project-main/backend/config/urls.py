@@ -5,9 +5,10 @@ from django.conf.urls.static import static
 
 
 # Customize admin site
-admin.site.site_header = 'Fitness App Administration'
-admin.site.site_title = 'Fitness App Admin'
-admin.site.index_title = 'Welcome to Fitness App Admin Portal'
+admin.site.site_header = 'Fit Mentor Administration'
+admin.site.site_title = 'Fit Mentor Admin'
+admin.site.index_title = 'Welcome to Fit Mentor Admin Portal'
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),

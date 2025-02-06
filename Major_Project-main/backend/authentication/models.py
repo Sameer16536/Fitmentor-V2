@@ -56,10 +56,12 @@ class User(AbstractUser):
         self.save()
 
 class UserStats(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='stats')
     total_exercises = models.IntegerField(default=0)
     total_minutes = models.IntegerField(default=0)
-    highest_streak = models.IntegerField(default=0)
     calories_burned = models.FloatField(default=0)
+    highest_streak = models.IntegerField(default=0)
+    weekly_workouts = models.IntegerField(default=0)
+    monthly_progress = models.FloatField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

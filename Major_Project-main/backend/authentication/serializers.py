@@ -45,3 +45,8 @@ class UserStatsSerializer(serializers.ModelSerializer):
         model = UserStats
         fields = ('total_exercises', 'total_minutes', 'highest_streak', 
                  'calories_burned', 'created_at')
+
+class UserSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('height', 'weight', 'fitness_goal', 'daily_streak')
