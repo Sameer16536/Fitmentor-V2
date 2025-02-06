@@ -69,7 +69,11 @@ export const APIUtility = {
     apiCall({
       method: "GET",
       url: "/api/auth/logout/",
+      data: {
+        refresh: localStorage.getItem("refreshToken"),
+      },
     }),
+
 
 
   getUserStats: () =>

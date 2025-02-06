@@ -19,6 +19,7 @@ import {
   ListItemText,
   Box,
 } from '@mui/material';
+import { APIUtility } from '../services/Api';
 
 const drawerWidth = 240;
 
@@ -36,10 +37,18 @@ const NavBar = ({ children }) => {
     setOpen(!open);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await APIUtility.logoutUser();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      // Always clear local storage and redirect
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');  // If you store refresh token
+      localStorage.removeItem('user');
+      navigate('/login');
+    }
   };
 
   const menuItems = [

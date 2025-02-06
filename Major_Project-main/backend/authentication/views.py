@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.contrib.auth import authenticate
 from .models import User, UserStats
 from .serializers import UserSerializer, UserStatsSerializer, UserSettingsSerializer
@@ -50,6 +50,36 @@ def login_user(request):
         {'error': 'Invalid credentials'}, 
         status=status.HTTP_401_UNAUTHORIZED
     )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def logout_user(request):
+    try:
+        # Get the token from request headers
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if not auth_header.startswith('Bearer '):
+            return Response({
+                'error': 'Invalid token format'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get the refresh token from request cookies or body
+        refresh_token = request.COOKIES.get('refreshToken') or request.data.get('refresh')
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except TokenError:
+                pass  # If refresh token is invalid, we still want to logout
+
+        return Response({
+            'message': 'Successfully logged out'
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            'error': str(e),
+            'message': 'Logout failed'
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
 def get_user_stats(request):

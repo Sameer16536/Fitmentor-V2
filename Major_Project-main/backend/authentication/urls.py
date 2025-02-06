@@ -11,4 +11,5 @@ urlpatterns = [
     path('settings/update/', views.update_user_settings, name='update_user_settings'),
     path('progress/', views.get_progress_stats, name='progress_stats'),
     path('achievements/', views.get_user_achievements, name='user_achievements'),
+    path('logout/', views.logout_user, name='logout'),
 ]
