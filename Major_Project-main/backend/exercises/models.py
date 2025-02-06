@@ -1,4 +1,3 @@
-
 from django.db import models
 from authentication.models import User
 
@@ -32,7 +31,7 @@ class UserExercise(models.Model):
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
     reps = models.IntegerField(null=True, blank=True)
     duration = models.IntegerField(null=True, blank=True)  # in seconds
-    form_accuracy = models.FloatField()
+    form_accuracy = models.FloatField(null=True, blank=True)
     video_recording = models.FileField(upload_to='exercise_videos/', null=True, blank=True)
     feedback = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

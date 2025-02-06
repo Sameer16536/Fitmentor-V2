@@ -82,18 +82,15 @@ export const APIUtility = {
       url: "/api/auth/stats/",
     }),
 
-    uuploadVideo: (exerciseType, videoFile) => {
-      const formData = new FormData();
-      formData.append("video", videoFile);
-      return apiCall({
+    uploadVideo: (exerciseType, formData) =>
+      apiCall({
         method: "POST",
         url: `/api/exercises/${exerciseType}/upload/`,
         data: formData,
         headers: {
           "Content-Type": "multipart/form-data",
         },
-      });
-    },
+      }),
   
     getExerciseHistory: () =>
       apiCall({
@@ -218,7 +215,31 @@ export const APIUtility = {
         params: { timeRange },
       }),
 
+    getVideoAnalysis: (exerciseId, exerciseType) =>
+      apiCall({
+        method: "GET",
+        url: `/api/exercises/${exerciseId}/analysis/`,
+        params: {
+          exercise_type: exerciseType
+        }
+      }),
 
-  
+    getUserExercises: () =>
+        apiCall({
+            method: "GET",
+            url: "/api/exercises/user/",
+        }),
 
+    startAnalysis: (exerciseId, formData, exerciseType) =>
+      apiCall({
+        method: "POST",
+        url: `/api/exercises/${exerciseId}/analyze/`,
+        data: {
+          exercise_type: exerciseType,
+          ...formData
+        },
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }),
 };

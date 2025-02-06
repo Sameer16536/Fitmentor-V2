@@ -4,23 +4,52 @@ import numpy as np
 import cv2
 import os
 from django.conf import settings
+from pathlib import Path
 
 class ExerciseAnalyzer:
     def __init__(self, exercise_type):
+        # Initialize for specific exercise type
         self.exercise_type = exercise_type
+        self.counter = 0
+        self.correct_poses = 0
+        self.total_poses = 0
+        self.stage = None
+        self.feedback = ""
+        self.form_feedback = []
+        self.correct_form = False
+        
+        # Load ML model
+        ml_models_dir = Path(settings.BASE_DIR) / 'exercises' / 'ml_models'
+        self.model = tf.keras.models.load_model(
+            str(ml_models_dir / f'{exercise_type}_model.h5')
+        )
+        
+        # Initialize MediaPipe
         self.mp_pose = mp.solutions.pose
         self.mp_drawing = mp.solutions.drawing_utils
         self.pose = self.mp_pose.Pose(
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
-        self.counter = 0  # rep counter
-        self.stage = None  # up or down stage
-        self.feedback = ""
-        self.form_feedback = ""
-        self.correct_form = False
-        self.correct_poses = 0
-        self.total_poses = 0
+
+        # Define keypoints based on exercise type
+        self.keypoints_config = {
+            'bicep_curls': [
+                'nose', 'left_elbow', 'right_elbow', 'left_shoulder', 
+                'right_shoulder', 'left_wrist', 'right_wrist', 'left_hip', 'right_hip'
+            ],
+            'planks': [
+                'nose', 'left_elbow', 'right_elbow', 'left_shoulder', 'right_shoulder',
+                'left_wrist', 'right_wrist', 'left_hip', 'right_hip', 'left_knee',
+                'right_knee', 'left_ankle', 'right_ankle', 'left_heel', 'right_heel',
+                'left_foot_index', 'right_foot_index'
+            ],
+            'lunges': [
+                'nose', 'left_shoulder', 'right_shoulder', 'left_hip', 'right_hip',
+                'left_knee', 'right_knee', 'left_ankle', 'right_ankle', 'left_heel',
+                'right_heel', 'left_foot_index', 'right_foot_index'
+            ]
+        }
 
     def calculate_angle(self, a, b, c):
         """Calculate angle between three points"""
@@ -36,58 +65,198 @@ class ExerciseAnalyzer:
             
         return angle
 
+    def extract_keypoints(self, landmarks):
+        """Extract relevant keypoints based on exercise type"""
+        keypoints = []
+        keypoint_list = self.keypoints_config.get(self.exercise_type, [])
+        
+        for landmark in landmarks:
+            # Extract x, y, z coordinates and visibility for each landmark
+            keypoints.extend([landmark.x, landmark.y, landmark.z, landmark.visibility])
+            
+        # Reshape according to the model's input shape
+        input_shape = (1, 1, len(keypoints))
+        return np.array(keypoints).reshape(input_shape)
+
+    def get_feedback(self, prediction, exercise_type):
+        """Generate feedback based on prediction and exercise type"""
+        if exercise_type == 'planks':
+            # Planks has 3 classes (correct, incorrect, slightly incorrect)
+            class_idx = np.argmax(prediction)
+            if class_idx == 1:  # Correct form
+                return "Correct form!", True
+            elif class_idx == 2:  # Slightly incorrect
+                return "Form needs minor adjustment. Keep your body straight.", False
+            else:  # Incorrect
+                return "Incorrect form. Lower your hips and keep your body straight.", False
+        else:
+            # Binary classification for other exercises
+            threshold = self.models[exercise_type]['threshold']
+            if prediction > threshold:
+                if exercise_type == 'bicep_curls':
+                    return "Good form! Full range of motion.", True
+                elif exercise_type == 'lunges':
+                    return "Good form! Keep it up.", True
+            else:
+                if exercise_type == 'bicep_curls':
+                    return "Incorrect form. Complete the full range of motion.", False
+                elif exercise_type == 'lunges':
+                    return "Incorrect form. Keep your back straight and go lower.", False
+        
+        return "Form needs improvement.", False
+
+    def analyze_frame(self, frame, exercise_type):
+        """Analyze a single frame for the given exercise type"""
+        if exercise_type not in self.keypoints_config:
+            raise ValueError(f"Unsupported exercise type: {exercise_type}")
+
+        # Convert frame to RGB
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        # Get pose landmarks
+        results = self.pose.process(rgb_frame)
+        
+        if not results.pose_landmarks:
+            return None, "No pose detected", False, ""
+
+        # Extract and prepare keypoints
+        input_data = self.extract_keypoints(results.pose_landmarks.landmark)
+        
+        # Get prediction from model
+        prediction = self.model.predict(input_data, verbose=0)
+        
+        # Get feedback based on prediction
+        feedback, is_correct = self.get_feedback(prediction[0], exercise_type)
+        
+        return prediction[0], "Frame analyzed successfully", is_correct, feedback
+
+    def process_video(self, video_path, exercise_type):
+        """Process a video file for exercise analysis"""
+        cap = cv2.VideoCapture(video_path)
+        frames_predictions = []
+        feedback_list = []
+        correct_form_count = 0
+        total_frames = 0
+        
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+                
+            prediction, message, is_correct, feedback = self.analyze_frame(frame, exercise_type)
+            if prediction is not None:
+                frames_predictions.append(prediction)
+                feedback_list.append(feedback)
+                if is_correct:
+                    correct_form_count += 1
+                total_frames += 1
+        
+        cap.release()
+        
+        if not frames_predictions:
+            return None, "No valid frames analyzed", 0, []
+            
+        accuracy = (correct_form_count / total_frames * 100) if total_frames > 0 else 0
+        return np.mean(frames_predictions, axis=0), "Video analysis complete", accuracy, feedback_list
+
     def process_frame(self, frame):
-        """Process each frame and return pose analysis"""
-        # Convert BGR to RGB
-        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        image.flags.writeable = False
+        # Convert to RGB for MediaPipe
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = self.pose.process(frame_rgb)
         
-        # Make detection
-        results = self.pose.process(image)
-        
-        # Convert back to BGR
-        image.flags.writeable = True
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        
-        try:
-            if results.pose_landmarks:
-                # Draw landmarks
-                self.mp_drawing.draw_landmarks(
-                    image,
-                    results.pose_landmarks,
-                    self.mp_pose.POSE_CONNECTIONS,
-                    self.mp_drawing.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
-                    self.mp_drawing.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
-                )
+        # Draw pose landmarks
+        annotated_frame = frame.copy()
+        if results.pose_landmarks:
+            self.mp_drawing.draw_landmarks(
+                annotated_frame,
+                results.pose_landmarks,
+                self.mp_pose.POSE_CONNECTIONS
+            )
+            
+            # Extract keypoints and get prediction
+            keypoints = self._extract_keypoints(results)
+            if keypoints is not None:
+                prediction = self.model.predict(keypoints, verbose=0)
                 
-                # Extract landmarks
-                landmarks = results.pose_landmarks.landmark
-
-                if self.exercise_type == "bicep_curls":
-                    metrics = self._process_bicep_curl(landmarks, image)
-                elif self.exercise_type == "squats":
-                    metrics = self._process_squat(landmarks, image)
-                elif self.exercise_type == "pushups":
-                    metrics = self._process_pushup(landmarks, image)
+                # Get exercise-specific feedback
+                feedback = self._get_exercise_feedback(prediction, keypoints.flatten())
                 
-                # Update form statistics
-                self.total_poses += 1
-                if self.correct_form:
-                    self.correct_poses += 1
-
-                return image, {
+                # Update metrics
+                form_accuracy = float(prediction[0] if self.exercise_type != 'planks' else max(prediction))
+                
+                return annotated_frame, {
                     'counter': self.counter,
                     'stage': self.stage,
-                    'feedback': self.feedback,
-                    'form_feedback': self.form_feedback,
-                    'correct_form': self.correct_form,
-                    'form_accuracy': (self.correct_poses / self.total_poses * 100) if self.total_poses > 0 else 0
+                    'form_accuracy': form_accuracy * 100,  # Convert to percentage
+                    'feedback': feedback,
+                    'correct_form': form_accuracy > 0.7
                 }
+        
+        return frame, {
+            'counter': self.counter,
+            'stage': self.stage,
+            'form_accuracy': 0,
+            'feedback': ["No pose detected"],
+            'correct_form': False
+        }
 
-        except Exception as e:
-            print(f"Error processing frame: {str(e)}")
+    def _extract_keypoints(self, results):
+        keypoints = []
+        if results.pose_landmarks:
+            landmarks = results.pose_landmarks.landmark
             
-        return frame, {}
+            # Get required landmarks based on exercise type
+            for point in self.keypoints_config.get(self.exercise_type, []):
+                landmark = getattr(self.mp_pose.PoseLandmark, point.upper())
+                keypoints.extend([
+                    landmarks[landmark].x,
+                    landmarks[landmark].y,
+                    landmarks[landmark].z,
+                    landmarks[landmark].visibility
+                ])
+            
+            # Reshape based on exercise type
+            if self.exercise_type == 'bicep_curls':
+                return np.array(keypoints).reshape(1, 1, 36)
+            elif self.exercise_type == 'planks':
+                return np.array(keypoints).reshape(1, 1, 68)
+            elif self.exercise_type == 'lunges':
+                return np.array(keypoints).reshape(1, 1, 52)
+            
+        return None
+
+    def _get_exercise_feedback(self, prediction, keypoints):
+        """Generate exercise-specific feedback"""
+        feedback = []
+        
+        if self.exercise_type == 'bicep_curls':
+            # Example feedback for bicep curls
+            left_elbow = keypoints[4:8]  # left elbow coordinates
+            left_shoulder = keypoints[12:16]  # left shoulder coordinates
+            if prediction < 0.7:
+                feedback.append("Keep your elbows close to your body")
+                feedback.append("Control the movement speed")
+            
+        elif self.exercise_type == 'planks':
+            # Example feedback for planks
+            if prediction[0] > 0.7:  # Correct form
+                feedback.append("Good plank position")
+            elif prediction[1] > 0.7:  # Low hips
+                feedback.append("Raise your hips to align with shoulders")
+            else:  # High hips
+                feedback.append("Lower your hips to align with shoulders")
+            
+        elif self.exercise_type == 'lunges':
+            # Example feedback for lunges
+            if prediction < 0.7:
+                feedback.append("Keep your upper body straight")
+                feedback.append("Step forward far enough")
+                
+        return feedback
+
+    def get_accuracy(self):
+        """Return overall form accuracy"""
+        return sum(self.form_feedback) / len(self.form_feedback) if self.form_feedback else 0
 
     def _process_bicep_curl(self, landmarks, image):
         """Process bicep curl exercise"""

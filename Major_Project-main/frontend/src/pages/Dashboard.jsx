@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { APIUtility } from '../services/Api';
 import NavBar from '../components/Navbar';
 import bicepCurls from '../assets/bicecp.jpg';
 import squats from '../assets/squats.jpg';
@@ -28,6 +29,20 @@ const exercises = [
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [recentExercises, setRecentExercises] = useState([]);
+
+  useEffect(() => {
+    // Fetch user's recent exercises
+    const fetchRecentExercises = async () => {
+      try {
+        const response = await APIUtility.getUserExercises();
+        setRecentExercises(response);
+      } catch (error) {
+        console.error('Error fetching recent exercises:', error);
+      }
+    };
+    fetchRecentExercises();
+  }, []);
 
   return (
     <NavBar>
@@ -77,6 +92,36 @@ const Dashboard = () => {
               </div>
             ))}
           </div>
+
+          {/* Recent Exercises Section */}
+          {recentExercises.length > 0 && (
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Exercises</h2>
+              <div className="grid grid-cols-1 gap-4">
+                {recentExercises.map((exercise) => (
+                  <div
+                    key={exercise.id}
+                    className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-semibold">{exercise.exercise_name}</h3>
+                        <p className="text-sm text-gray-600">
+                          Accuracy: {exercise.form_accuracy}%
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => navigate(`/exercise/${exercise.id}/analysis`)}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                      >
+                        View Analysis
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </NavBar>

@@ -166,6 +166,15 @@ GET /api/exercises/history/
 ]
 ```
 
+
+### Test ML Models
+```http
+GET /api/exercises/test-models/
+```
+**Response:**
+```json
+
+
 ## WebSocket Connection
 
 ### Real-time Exercise Analysis
