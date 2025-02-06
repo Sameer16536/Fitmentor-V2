@@ -33,6 +33,7 @@ const Login = () => {
             }
             
             localStorage.setItem("authToken", response.access);
+            localStorage.setItem("refreshToken", response.refresh);
             
             if (response.user) {
                 localStorage.setItem("user", JSON.stringify(response.user));

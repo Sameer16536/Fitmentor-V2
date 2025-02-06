@@ -2,11 +2,11 @@ from django.shortcuts import render
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.contrib.auth import authenticate
 from .models import User, UserStats
-from .serializers import UserSerializer, UserStatsSerializer
+from .serializers import UserSerializer, UserStatsSerializer, UserSettingsSerializer
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -52,7 +52,101 @@ def login_user(request):
     )
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def logout_user(request):
+    try:
+        # Get the token from request headers
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if not auth_header.startswith('Bearer '):
+            return Response({
+                'error': 'Invalid token format'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get the refresh token from request cookies or body
+        refresh_token = request.COOKIES.get('refreshToken') or request.data.get('refresh')
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except TokenError:
+                pass  # If refresh token is invalid, we still want to logout
+
+        return Response({
+            'message': 'Successfully logged out'
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            'error': str(e),
+            'message': 'Logout failed'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
 def get_user_stats(request):
     stats = UserStats.objects.get(user=request.user)
     serializer = UserStatsSerializer(stats)
     return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_settings(request):
+    try:
+        user = request.user
+        serializer = UserSettingsSerializer(user)
+        return Response(serializer.data)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_user_settings(request):
+    try:
+        user = request.user
+        serializer = UserSettingsSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_progress_stats(request):
+    try:
+        user = request.user
+        stats = UserStats.objects.get(user=user)
+        progress_data = [
+            {'name': 'Weekly Workouts', 'value': stats.weekly_workouts},
+            {'name': 'Monthly Progress', 'value': f"{stats.monthly_progress}%"},
+            {'name': 'Current Streak', 'value': user.daily_streak}
+        ]
+        return Response(progress_data)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_achievements(request):
+    try:
+        user = request.user
+        achievements = [
+            {
+                'title': 'First Workout',
+                'description': 'Completed your first workout session',
+                'achieved': user.stats.total_exercises > 0
+            },
+            {
+                'title': 'Streak Master',
+                'description': 'Maintained a 7-day workout streak',
+                'achieved': user.daily_streak >= 7
+            },
+            {
+                'title': 'Calorie Crusher',
+                'description': 'Burned over 1000 calories',
+                'achieved': user.stats.calories_burned > 1000
+            }
+        ]
+        return Response(achievements)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -69,7 +69,11 @@ export const APIUtility = {
     apiCall({
       method: "GET",
       url: "/api/auth/logout/",
+      data: {
+        refresh: localStorage.getItem("refreshToken"),
+      },
     }),
+
 
 
   getUserStats: () =>
@@ -127,7 +131,7 @@ export const APIUtility = {
     getProgressStats: () =>
       apiCall({
         method: "GET",
-        url: "/api/user/progress/",
+        url: "/api/auth/progress/",
       }),
   
     // Workout Plan APIs
@@ -154,7 +158,7 @@ export const APIUtility = {
     getUserAchievements: () =>
       apiCall({
         method: "GET",
-        url: "/api/user/achievements/",
+        url: "/api/auth/achievements/",
       }),
   
     // Feedback APIs
@@ -169,14 +173,14 @@ export const APIUtility = {
     updateUserSettings: (body) =>
       apiCall({
         method: "PATCH",
-        url: "/api/user/settings/",
+        url: "/api/auth/settings/update/",
         data: body,
       }),
   
     getUserSettings: () =>
       apiCall({
         method: "GET",
-        url: "/api/user/settings/",
+        url: "/api/auth/settings/",
       }),
   
     // Notification APIs
