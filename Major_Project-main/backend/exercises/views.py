@@ -1,6 +1,6 @@
-from rest_framework import generics, status
+from rest_framework import generics, status, viewsets
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser
 import cv2
@@ -8,11 +8,15 @@ import numpy as np
 from .models import Exercise, UserExercise
 from .serializers import ExerciseSerializer, UserExerciseSerializer
 from .services.exercise_analysis import ExerciseAnalyzer
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 import mediapipe as mp
 import base64
 from django.core.files.storage import default_storage
 import os
+from .services.model_tester import ModelTester
+from django.conf import settings
+from django.core.files.base import ContentFile
+import tempfile
 
 class ExerciseList(generics.ListAPIView):
     queryset = Exercise.objects.all()
@@ -325,3 +329,175 @@ def upload_video(request, exercise_type):
         })
     except Exception as e:
         return Response({'error': str(e)}, status=500)
+
+@api_view(['GET'])
+def test_ml_models(request):
+    """
+    Test endpoint to verify ML models are loading correctly
+    """
+    # Add directory check
+    base_dir = os.path.join(settings.BASE_DIR, 'exercises', 'ml_models')
+    if not os.path.exists(base_dir):
+        return Response({
+            'error': f'ML models directory not found at {base_dir}',
+            'current_directory': os.getcwd(),
+            'base_directory': settings.BASE_DIR
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    tester = ModelTester()
+    results = tester.load_and_test_models()
+    return Response({
+        'models_directory': base_dir,
+        'results': results
+    }, status=status.HTTP_200_OK)
+
+class ExerciseViewSet(viewsets.ModelViewSet):
+    queryset = Exercise.objects.all()
+    serializer_class = ExerciseSerializer
+    parser_classes = [MultiPartParser]
+
+    @action(detail=False, methods=['POST'], url_path='(?P<exercise_type>\\w+)/upload')
+    def upload_video(self, request, exercise_type=None):
+        try:
+            # Get the exercise instance
+            exercise = Exercise.objects.get(name=exercise_type)
+            
+            # Handle video upload
+            video_file = request.FILES.get('video')
+            if not video_file:
+                return Response(
+                    {'error': 'No video file provided'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Create UserExercise instance
+            user_exercise = UserExercise.objects.create(
+                user=request.user,
+                exercise=exercise,
+                video_recording=video_file
+            )
+
+            return Response({
+                'id': user_exercise.id,
+                'message': 'Video uploaded successfully'
+            })
+
+        except Exercise.DoesNotExist:
+            return Response(
+                {'error': 'Exercise type not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['POST'], url_path='analyze')
+    def analyze_video(self, request, pk=None):
+        try:
+            # Get the UserExercise instance
+            user_exercise = UserExercise.objects.get(id=pk)
+            
+            if not user_exercise.video_recording:
+                return Response(
+                    {'error': 'No video file found'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Initialize analyzer with correct exercise type
+            analyzer = ExerciseAnalyzer(user_exercise.exercise.name)
+            
+            # Process video
+            video_path = user_exercise.video_recording.path
+            cap = cv2.VideoCapture(video_path)
+            
+            form_accuracies = []
+            feedback_list = []
+            
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                # Process frame
+                processed_frame, metrics = analyzer.process_frame(frame)
+                form_accuracies.append(metrics.get('form_accuracy', 0))
+                if metrics.get('feedback'):
+                    feedback_list.extend(metrics['feedback'])
+            
+            cap.release()
+            
+            # Calculate overall metrics
+            overall_accuracy = sum(form_accuracies) / len(form_accuracies) if form_accuracies else 0
+            
+            # Update UserExercise instance
+            user_exercise.form_accuracy = overall_accuracy
+            user_exercise.reps = analyzer.counter
+            user_exercise.feedback = "\n".join(set(feedback_list))  # Remove duplicates
+            user_exercise.save()
+            
+            return Response({
+                'id': user_exercise.id,
+                'video_url': request.build_absolute_uri(user_exercise.video_recording.url),
+                'metrics': {
+                    'total_reps': analyzer.counter,
+                    'form_accuracy': overall_accuracy,
+                    'feedback': user_exercise.feedback
+                }
+            })
+
+        except UserExercise.DoesNotExist:
+            return Response(
+                {'error': 'Exercise not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['GET'], url_path='analysis')
+    def get_analysis(self, request, pk=None):
+        try:
+            user_exercise = UserExercise.objects.get(id=pk)
+            serializer = UserExerciseSerializer(user_exercise)
+            
+            return Response({
+                'id': user_exercise.id,
+                'video_url': request.build_absolute_uri(user_exercise.video_recording.url),
+                'metrics': {
+                    'total_reps': user_exercise.reps,
+                    'form_accuracy': user_exercise.form_accuracy,
+                    'feedback': user_exercise.feedback
+                }
+            })
+            
+        except UserExercise.DoesNotExist:
+            return Response(
+                {'error': 'Analysis not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=False, methods=['GET'])
+    def available_exercises(self, request):
+        """Get list of available exercises"""
+        exercises = Exercise.objects.all()
+        serializer = self.get_serializer(exercises, many=True)
+        return Response(serializer.data)
+
+    def get_feedback(self):
+        """Compile overall feedback from frame analysis"""
+        if not self.form_feedback:
+            return "No feedback available"
+        
+        # Count frequency of each feedback
+        feedback_counts = {}
+        for feedback in self.form_feedback:
+            for item in feedback:
+                feedback_counts[item] = feedback_counts.get(item, 0) + 1
+        
+        # Return most common feedback items
+        sorted_feedback = sorted(feedback_counts.items(), key=lambda x: x[1], reverse=True)
+        return [item[0] for item in sorted_feedback[:3]]  # Return top 3 most common feedback items

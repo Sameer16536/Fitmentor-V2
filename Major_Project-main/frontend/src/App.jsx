@@ -10,6 +10,7 @@ import Exercise from './components/Exercise';
 import Dashboard from './pages/Dashboard';
 import VideoUpload from './components/VideoUpload';
 import Profile from './pages/Profile';
+import VideoAnalysis from './components/VideoAnalysis';
 
 const theme = createTheme({
   palette: {
@@ -64,6 +65,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/exercise/:exerciseId/analysis"
+              element={
+                <ProtectedRoute>
+                  <VideoAnalysis />
                 </ProtectedRoute>
               }
             />
