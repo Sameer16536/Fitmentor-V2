@@ -20,9 +20,18 @@ class ExerciseAnalyzer:
         
         # Load ML model
         ml_models_dir = Path(settings.BASE_DIR) / 'exercises' / 'ml_models'
-        self.model = tf.keras.models.load_model(
-            str(ml_models_dir / f'{exercise_type}_model.h5')
-        )
+        self.model_paths = {
+            'bicep_curls': str(ml_models_dir / 'bicep_model.h5'),
+            'pushups': str(ml_models_dir / 'pushups_model.h5'),
+            'squats': str(ml_models_dir / 'squats_model.h5'),
+            'lunges': str(ml_models_dir / 'lunges_model.h5'),
+            'planks': str(ml_models_dir / 'planks_model.h5')
+        }
+        # Load model based on exercise type from model_paths dictionary
+        if exercise_type in self.model_paths:
+            self.model = tf.keras.models.load_model(self.model_paths[exercise_type])
+        else:
+            raise ValueError(f"No model found for exercise type: {exercise_type}")
         
         # Initialize MediaPipe
         self.mp_pose = mp.solutions.pose
