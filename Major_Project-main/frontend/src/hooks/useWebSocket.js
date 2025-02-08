@@ -4,31 +4,22 @@ const RECONNECT_TIMEOUT = 3000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
 const useWebSocket = (exerciseType) => {
+    const wsRef = useRef(null);
     const [isConnected, setIsConnected] = useState(false);
     const [error, setError] = useState(null);
     const [metrics, setMetrics] = useState(null);
-    const wsRef = useRef(null);
+    const [processedImage, setProcessedImage] = useState(null);
+    const lastProcessedTimeRef = useRef(0);
+    const DISPLAY_FPS = 10; // Limit display updates to 10 FPS
+    const displayInterval = 1000 / DISPLAY_FPS;
     const reconnectAttemptsRef = useRef(0);
     const reconnectTimeoutRef = useRef(null);
 
     const connect = useCallback(() => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) return;
+        
         try {
-            if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
-                setError('Maximum reconnection attempts reached');
-                return;
-            }
-
-            // Get the token from localStorage
-            const token = localStorage.getItem('authToken');
-            if (!token) {
-                setError('Authentication token not found');
-                return;
-            }
-
-            // Create WebSocket connection with token
-            wsRef.current = new WebSocket(
-                `ws://localhost:8000/ws/exercise/${exerciseType}/?token=${token}`
-            );
+            wsRef.current = new WebSocket(`ws://localhost:8000/ws/exercise/${exerciseType}/`);
 
             wsRef.current.onopen = () => {
                 console.log('WebSocket connected');
@@ -37,88 +28,71 @@ const useWebSocket = (exerciseType) => {
                 reconnectAttemptsRef.current = 0;
             };
 
-            wsRef.current.onclose = (event) => {
-                console.log('WebSocket disconnected', event.code, event.reason);
-                setIsConnected(false);
-                
-                // Don't reconnect if it was a normal closure
-                if (event.code !== 1000) {
-                    reconnectAttemptsRef.current += 1;
-                    reconnectTimeoutRef.current = setTimeout(() => {
-                        connect();
-                    }, RECONNECT_TIMEOUT);
-                }
-            };
-
-            wsRef.current.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                setError('Connection error');
-            };
-
             wsRef.current.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    switch (data.type) {
-                        case 'frame_processed':
-                            setMetrics(data.metrics);
-                            break;
-                        case 'error':
-                            setError(data.message);
-                            break;
-                        case 'connection_established':
-                            console.log('Connection established with backend');
-                            break;
-                        default:
-                            console.log('Received message:', data);
+                    // console.log('Received data:', data); // Debug log
+                    if (data.type === 'frame_processed') {
+                        const now = Date.now();
+                        // Update metrics always
+                        setMetrics(data.metrics);
+                        // But limit processed image updates
+                        if (now - lastProcessedTimeRef.current >= displayInterval) {
+                            setProcessedImage(data.frame);
+                            lastProcessedTimeRef.current = now;
+                        }
+                    } else if (data.type === 'error') {
+                        console.error('Server error:', data.message);
+                        setError(data.message);
                     }
                 } catch (err) {
                     console.error('Error parsing message:', err);
                 }
             };
+
+            wsRef.current.onclose = (event) => {
+                console.log('WebSocket disconnected', event.code, event.reason);
+                setIsConnected(false);
+                setMetrics(null);
+                setProcessedImage(null);
+            };
+
         } catch (err) {
             setError(err.message);
         }
-    }, [exerciseType]);
+    }, [exerciseType, displayInterval]);
 
     const disconnect = useCallback(() => {
-        if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current);
-        }
         if (wsRef.current) {
-            wsRef.current.close(1000, 'Normal closure');
+            wsRef.current.close(1000, 'Component unmounted');
+            wsRef.current = null;
         }
         setIsConnected(false);
-        reconnectAttemptsRef.current = 0;
+        setMetrics(null);
+        setProcessedImage(null);
     }, []);
 
-    const sendFrame = useCallback((frameData) => {
+    const sendFrame = useCallback((frame) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
-            const message = {
-                type: 'frame',
-                frame: frameData,
-                timestamp: Date.now(),
-                exercise_type: exerciseType
-            };
-            wsRef.current.send(JSON.stringify(message));
-        } else {
-            console.warn('WebSocket is not connected');
+            try {
+                wsRef.current.send(JSON.stringify({
+                    type: 'frame',
+                    frame: frame
+                }));
+            } catch (err) {
+                console.error('Error sending frame:', err);
+            }
         }
-    }, [exerciseType]);
+    }, []);
 
-    useEffect(() => {
-        connect();
-        return () => {
-            disconnect();
-        };
-    }, [connect, disconnect]);
-
-    return {
-        isConnected,
-        error,
-        metrics,
-        sendFrame,
-        reconnect: connect,
-        disconnect
+    return { 
+        isConnected, 
+        error, 
+        metrics, 
+        processedImage,
+        sendFrame, 
+        connect, 
+        disconnect 
     };
 };
 
