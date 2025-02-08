@@ -15,7 +15,7 @@ const VideoAnalysis = ({ exerciseId, exerciseType }) => {
         const fetchAnalysis = async () => {
             try {
                 const response = await APIUtility.getVideoAnalysis(exerciseId, exerciseType);
-                setAnalysis(response);
+                setAnalysis(response.metrics);
                 
                 // Load and play the uploaded video
                 if (videoRef.current) {
@@ -85,7 +85,7 @@ const VideoAnalysis = ({ exerciseId, exerciseType }) => {
                                     <h3 className="text-lg font-semibold mb-2">Performance Metrics</h3>
                                     <div className="space-y-2">
                                         <p>Total Reps: {analysis?.total_reps || 0}</p>
-                                        <p>Form Accuracy: {analysis?.form_accuracy ? `${(analysis.form_accuracy * 100).toFixed(1)}%` : '0%'}</p>
+                                        <p>Form Accuracy: {analysis?.form_accuracy ? `${(analysis.form_accuracy ).toFixed(1)}%` : '0%'}</p>
                                         <p>Overall Feedback: {analysis?.feedback || 'No feedback available'}</p>
                                     </div>
                                 </div>

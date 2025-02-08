@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import Webcam from 'react-webcam';
 import useWebSocket from '../hooks/useWebSocket';
@@ -6,125 +6,137 @@ import useWebSocket from '../hooks/useWebSocket';
 const Exercise = () => {
     const { exerciseType } = useParams();
     const webcamRef = useRef(null);
-    const [isActive, setIsActive] = useState(false);
-    const frameIntervalRef = useRef(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const lastFrameTimeRef = useRef(0);
+    const FPS = 15; // Limit to 15 frames per second
+    const frameInterval = 1000 / FPS;
+    
+    const { isConnected, error, metrics, sendFrame, connect, disconnect, processedImage } = useWebSocket(exerciseType);
 
-    const {
-        isConnected,
-        error,
-        metrics,
-        sendFrame,
-        startExercise,
-        stopExercise,
-        reconnect
-    } = useWebSocket(exerciseType);
+    const captureAndSendFrame = useCallback(() => {
+        if (!isAnalyzing || !webcamRef.current?.video) return;
 
-    const captureFrame = () => {
-        if (webcamRef.current && isActive) {
-            const imageSrc = webcamRef.current.getScreenshot();
-            if (imageSrc) {
-                // Remove the data:image/jpeg;base64, prefix
-                const base64Frame = imageSrc.split(',')[1];
-                sendFrame(base64Frame);
-            }
+        const now = Date.now();
+        if (now - lastFrameTimeRef.current < frameInterval) {
+            // Skip frame if not enough time has passed
+            requestAnimationFrame(captureAndSendFrame);
+            return;
+        }
+
+        const video = webcamRef.current.video;
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const frame = canvas.toDataURL('image/jpeg', 0.8);
+            sendFrame(frame);
+            lastFrameTimeRef.current = now;
+        }
+        
+        if (isAnalyzing) {
+            requestAnimationFrame(captureAndSendFrame);
+        }
+    }, [isAnalyzing, sendFrame, frameInterval]);
+
+    // Handle start/stop analysis
+    const toggleAnalysis = () => {
+        if (!isAnalyzing) {
+            setIsAnalyzing(true);
+            // WebSocket should already be connected
+        } else {
+            setIsAnalyzing(false);
         }
     };
 
+    // Effect for frame capture
     useEffect(() => {
-        if (isActive && isConnected) {
-            startExercise();
-            frameIntervalRef.current = setInterval(captureFrame, 100);
-        } else {
-            if (frameIntervalRef.current) {
-                clearInterval(frameIntervalRef.current);
-            }
-            if (isConnected) {
-                stopExercise();
-            }
+        if (isAnalyzing) {
+            captureAndSendFrame();
         }
+    }, [isAnalyzing, captureAndSendFrame]);
 
+    // Effect for WebSocket connection
+    useEffect(() => {
+        connect(); // Connect when component mounts
         return () => {
-            if (frameIntervalRef.current) {
-                clearInterval(frameIntervalRef.current);
-            }
+            disconnect(); // Disconnect when component unmounts
         };
-    }, [isActive, isConnected, startExercise, stopExercise]);
-
-    // Show connection status
-    useEffect(() => {
-        if (!isConnected) {
-            console.log('Waiting for connection...');
-        }
-    }, [isConnected]);
-
-    // Handle errors
-    useEffect(() => {
-        if (error) {
-            console.error('WebSocket error:', error);
-            // Optionally show error to user
-        }
-    }, [error]);
+    }, [connect, disconnect]);
 
     return (
         <div className="flex flex-col items-center p-4">
-            {/* Connection Status */}
-            {!isConnected && (
-                <div className="bg-yellow-100 text-yellow-700 p-3 rounded mb-4">
-                    Connecting to exercise service...
-                </div>
-            )}
+            <h2 className="text-2xl font-bold mb-4">{exerciseType} Analysis</h2>
             
-            {/* Error Display */}
-            {error && (
-                <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-                    {error}
-                    <button 
-                        onClick={reconnect}
-                        className="ml-2 underline"
-                    >
-                        Try Again
-                    </button>
-                </div>
-            )}
-            
-            <div className="relative">
+            <div className="relative w-full max-w-3xl">
+                {/* Original Webcam Feed */}
                 <Webcam
                     ref={webcamRef}
-                    screenshotFormat="image/jpeg"
-                    className="rounded-lg shadow-lg"
-                    width={640}
-                    height={480}
+                    className="w-full rounded-lg shadow-lg"
+                    mirrored={true}
                 />
                 
-                {metrics && (
-                    <div className="absolute top-4 left-4 bg-black/50 text-white p-4 rounded">
-                        <p>Reps: {metrics.counter}</p>
-                        <p>Form: {metrics.form_accuracy}%</p>
-                        <p>Stage: {metrics.stage}</p>
-                        {metrics.form_feedback && (
-                            <p>Feedback: {metrics.form_feedback}</p>
-                        )}
-                    </div>
+                {/* Processed Frame Overlay */}
+                {processedImage && (
+                    <img 
+                        src={processedImage} 
+                        alt="Processed" 
+                        className="absolute top-0 left-0 w-full h-full rounded-lg"
+                    />
                 )}
             </div>
 
             <button
-                onClick={() => setIsActive(!isActive)}
+                onClick={toggleAnalysis}
                 disabled={!isConnected}
                 className={`mt-4 px-6 py-2 rounded-full font-semibold ${
-                    !isConnected 
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : isActive 
-                            ? 'bg-red-500 hover:bg-red-600' 
-                            : 'bg-green-500 hover:bg-green-600'
+                    !isConnected ? 'bg-gray-400' :
+                    isAnalyzing ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
                 } text-white transition-colors`}
             >
-                {!isConnected 
-                    ? 'Connecting...' 
-                    : isActive 
-                        ? 'Stop Exercise' 
-                        : 'Start Exercise'}
+                {!isConnected ? 'Connecting...' : isAnalyzing ? 'Stop' : 'Start'} Analysis
             </button>
+
+            {/* Metrics Display */}
+            {metrics && (
+                <div className="mt-6 p-4 bg-white rounded-lg shadow-lg w-full max-w-3xl">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center p-3 bg-gray-50 rounded">
+                            <p className="text-gray-600">Form Accuracy</p>
+                            <p className="text-2xl font-bold text-blue-600">
+                                {Math.round(metrics.form_accuracy)}%
+                            </p>
+                        </div>
+                        <div className="text-center p-3 bg-gray-50 rounded">
+                            <p className="text-gray-600">Reps</p>
+                            <p className="text-2xl font-bold text-blue-600">
+                                {metrics.counter || 0}
+                            </p>
+                        </div>
+                    </div>
+                    {metrics.feedback && (
+                        <div className="mt-4 p-3 bg-yellow-50 rounded">
+                            <p className="text-gray-700">
+                                <span className="font-semibold">Stage: </span>
+                                {metrics.stage || 'Not started'}
+                            </p>
+                            <p className="text-gray-700">
+                                <span className="font-semibold">Feedback: </span>
+                                {metrics.feedback}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {error && (
+                <div className="mt-4 p-4 bg-red-100 text-red-700 rounded">
+                    {error}
+                </div>
+            )}
         </div>
     );
 };
