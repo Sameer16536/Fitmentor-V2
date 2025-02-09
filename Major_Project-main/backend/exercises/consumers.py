@@ -13,9 +13,15 @@ class ExerciseAnalysisConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.last_process_time = 0
-        self.PROCESS_FPS = 15  # Limit processing to 15 FPS
+        self.PROCESS_FPS = 15
         self.process_interval = 1.0 / self.PROCESS_FPS
         self.lock = Lock()
+        self.counter = 0
+        self.stage = None
+        self.start_time = None
+        self.duration = 0
+        self.correct_form_count = 0
+        self.total_frames = 0
 
     async def connect(self):
         """Initialize connection and ExerciseAnalyzer"""
@@ -98,39 +104,174 @@ class ExerciseAnalysisConsumer(AsyncWebsocketConsumer):
         }))
 
     def analyze_exercise(self, landmarks):
-        """Analyze exercise form"""
-        # Get coordinates
+        """Analyze exercise form based on exercise type"""
+        if self.exercise_type == 'bicep_curls':
+            return self._analyze_bicep_curl(landmarks)
+        elif self.exercise_type == 'squats':
+            return self._analyze_squat(landmarks)
+        elif self.exercise_type == 'pushups':
+            return self._analyze_pushup(landmarks)
+        elif self.exercise_type == 'planks':
+            return self._analyze_plank(landmarks)
+        elif self.exercise_type == 'lunges':
+            return self._analyze_lunge(landmarks)
+        
+        return {'error': 'Unknown exercise type'}
+
+    def _analyze_bicep_curl(self, landmarks):
+        """Analyze bicep curl form"""
         shoulder = landmarks[self.mp_pose.PoseLandmark.LEFT_SHOULDER.value]
         elbow = landmarks[self.mp_pose.PoseLandmark.LEFT_ELBOW.value]
         wrist = landmarks[self.mp_pose.PoseLandmark.LEFT_WRIST.value]
-
-        # Calculate angle
+        
         angle = self.calculate_angle(shoulder, elbow, wrist)
-
-        # Count reps
-        if angle > 160:
+        
+        # Extract keypoints for model
+        keypoints = self.extract_keypoints(landmarks)
+        prediction = self.model.predict(keypoints, verbose=0)[0][0]
+        form_accuracy = float(prediction * 100)
+        
+        if angle > 160 and self.stage != "down":
             self.stage = "down"
+            self.correct_form = prediction > 0.7
         elif angle < 30 and self.stage == 'down':
             self.stage = "up"
             self.counter += 1
-
-        # Determine form accuracy and feedback
-        form_accuracy = 100
-        feedback = "Good form!"
-        if angle > 30 and angle < 160:
-            form_accuracy = 70
-            feedback = "Complete the full range of motion"
-        elif not (angle > 160 or angle < 30):
-            form_accuracy = 50
-            feedback = "Keep your form strict"
+            self.correct_form = prediction > 0.7
 
         return {
             'reps': self.counter,
             'stage': self.stage,
             'angle': int(angle),
             'form_accuracy': form_accuracy,
-            'feedback': feedback
+            'feedback': self._get_feedback(angle, prediction)
         }
+
+    def _analyze_squat(self, landmarks):
+        """Analyze squat form"""
+        hip = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value]
+        knee = landmarks[self.mp_pose.PoseLandmark.LEFT_KNEE.value]
+        ankle = landmarks[self.mp_pose.PoseLandmark.LEFT_ANKLE.value]
+        
+        angle = self.calculate_angle(hip, knee, ankle)
+        keypoints = self.extract_keypoints(landmarks)
+        prediction = self.model.predict(keypoints, verbose=0)[0][0]
+        form_accuracy = float(prediction * 100)
+        
+        if angle < 100 and self.stage != "down":
+            self.stage = "down"
+            self.correct_form = prediction > 0.7
+        elif angle > 160 and self.stage == 'down':
+            self.stage = "up"
+            self.counter += 1
+            self.correct_form = prediction > 0.7
+
+        return {
+            'reps': self.counter,
+            'stage': self.stage,
+            'angle': int(angle),
+            'form_accuracy': form_accuracy,
+            'feedback': self._get_squat_feedback(angle, prediction)
+        }
+
+    def _analyze_plank(self, landmarks):
+        """Analyze plank form"""
+        # Extract relevant landmarks for plank
+        shoulder = landmarks[self.mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+        hip = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value]
+        ankle = landmarks[self.mp_pose.PoseLandmark.LEFT_ANKLE.value]
+        
+        # Calculate body alignment angle
+        angle = self.calculate_angle(shoulder, hip, ankle)
+        keypoints = self.extract_keypoints(landmarks)
+        prediction = self.model.predict(keypoints, verbose=0)[0][0]
+        form_accuracy = float(prediction * 100)
+        
+        # Update duration for plank
+        if self.start_time is None:
+            self.start_time = time.time()
+        self.duration = time.time() - self.start_time
+        
+        return {
+            'duration': self.duration,
+            'angle': int(angle),
+            'form_accuracy': form_accuracy,
+            'feedback': self._get_plank_feedback(angle, prediction)
+        }
+
+    def _analyze_pushup(self, landmarks):
+        """Analyze pushup form"""
+        shoulder = landmarks[self.mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+        elbow = landmarks[self.mp_pose.PoseLandmark.LEFT_ELBOW.value]
+        wrist = landmarks[self.mp_pose.PoseLandmark.LEFT_WRIST.value]
+        
+        angle = self.calculate_angle(shoulder, elbow, wrist)
+        keypoints = self.extract_keypoints(landmarks)
+        prediction = self.model.predict(keypoints, verbose=0)[0][0]
+        form_accuracy = float(prediction * 100)
+        
+        if angle > 160 and self.stage != "down":
+            self.stage = "down"
+            self.correct_form = prediction > 0.7
+        elif angle < 90 and self.stage == 'down':
+            self.stage = "up"
+            self.counter += 1
+            self.correct_form = prediction > 0.7
+
+        return {
+            'reps': self.counter,
+            'stage': self.stage,
+            'angle': int(angle),
+            'form_accuracy': form_accuracy,
+            'feedback': self._get_pushup_feedback(angle, prediction)
+        }
+
+    def _analyze_lunge(self, landmarks):
+        """Analyze lunge form"""
+        hip = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value]
+        knee = landmarks[self.mp_pose.PoseLandmark.LEFT_KNEE.value]
+        ankle = landmarks[self.mp_pose.PoseLandmark.LEFT_ANKLE.value]
+        
+        angle = self.calculate_angle(hip, knee, ankle)
+        keypoints = self.extract_keypoints(landmarks)
+        prediction = self.model.predict(keypoints, verbose=0)[0][0]
+        form_accuracy = float(prediction * 100)
+        
+        if angle > 160:
+            self.stage = "up"
+        elif angle < 90 and self.stage == 'up':
+            self.stage = "down"
+            self.counter += 1
+            self.correct_form = prediction > 0.7
+
+        return {
+            'reps': self.counter,
+            'stage': self.stage,
+            'angle': int(angle),
+            'form_accuracy': form_accuracy,
+            'feedback': self._get_lunge_feedback(angle, prediction)
+        }
+
+    def _get_feedback(self, angle, prediction):
+        """Get exercise-specific feedback"""
+        if prediction < 0.7:
+            return "Incorrect form detected, please check your posture"
+        if self.exercise_type == 'bicep_curls':
+            if angle > 30 and angle < 160:
+                return "Complete the full range of motion"
+        elif self.exercise_type == 'squats':
+            if angle > 100:
+                return "Squat deeper for full range of motion"
+        elif self.exercise_type == 'pushups':
+            if angle > 90:
+                return "Lower your body more"
+        elif self.exercise_type == 'planks':
+            if angle < 160:
+                return "Keep your body straight"
+        elif self.exercise_type == 'lunges':
+            if angle > 90:
+                return "Lower your back knee more"
+        return "Good form!"
 
     def calculate_angle(self, shoulder, elbow, wrist):
         """Calculate angle between three points"""
@@ -204,52 +345,52 @@ class ExerciseConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             print(f"Error processing frame: {str(e)}")
 
-    def analyze_bicep_curl(self, landmarks, frame):
-        """Analyze bicep curl form"""
-        # Get coordinates
-        shoulder = landmarks[self.mp_pose.PoseLandmark.LEFT_SHOULDER.value]
-        elbow = landmarks[self.mp_pose.PoseLandmark.LEFT_ELBOW.value]
-        wrist = landmarks[self.mp_pose.PoseLandmark.LEFT_WRIST.value]
+    # def analyze_bicep_curl(self, landmarks, frame):
+    #     """Analyze bicep curl form"""
+    #     # Get coordinates
+    #     shoulder = landmarks[self.mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    #     elbow = landmarks[self.mp_pose.PoseLandmark.LEFT_ELBOW.value]
+    #     wrist = landmarks[self.mp_pose.PoseLandmark.LEFT_WRIST.value]
 
-        # Calculate angle
-        angle = self.calculate_angle(shoulder, elbow, wrist)
+    #     # Calculate angle
+    #     angle = self.calculate_angle(shoulder, elbow, wrist)
 
-        # Count reps
-        if angle > 160:
-            self.stage = "down"
-        elif angle < 30 and self.stage == 'down':
-            self.stage = "up"
-            self.counter += 1
+    #     # Count reps
+    #     if angle > 160:
+    #         self.stage = "down"
+    #     elif angle < 30 and self.stage == 'down':
+    #         self.stage = "up"
+    #         self.counter += 1
 
-        # Determine form accuracy and feedback
-        form_accuracy = 100
-        feedback = "Good form!"
-        if angle > 30 and angle < 160:
-            form_accuracy = 70
-            feedback = "Complete the full range of motion"
-        elif not (angle > 160 or angle < 30):
-            form_accuracy = 50
-            feedback = "Keep your form strict"
+    #     # Determine form accuracy and feedback
+    #     form_accuracy = 100
+    #     feedback = "Good form!"
+    #     if angle > 30 and angle < 160:
+    #         form_accuracy = 70
+    #         feedback = "Complete the full range of motion"
+    #     elif not (angle > 160 or angle < 30):
+    #         form_accuracy = 50
+    #         feedback = "Keep your form strict"
 
-        return {
-            'reps': self.counter,
-            'stage': self.stage,
-            'angle': int(angle),
-            'form_accuracy': form_accuracy,
-            'feedback': feedback
-        }
+    #     return {
+    #         'reps': self.counter,
+    #         'stage': self.stage,
+    #         'angle': int(angle),
+    #         'form_accuracy': form_accuracy,
+    #         'feedback': feedback
+    #     }
 
-    def calculate_angle(self, shoulder, elbow, wrist):
-        """Calculate angle between three points"""
-        a = np.array([shoulder.x, shoulder.y])
-        b = np.array([elbow.x, elbow.y])
-        c = np.array([wrist.x, wrist.y])
+    # def calculate_angle(self, shoulder, elbow, wrist):
+    #     """Calculate angle between three points"""
+    #     a = np.array([shoulder.x, shoulder.y])
+    #     b = np.array([elbow.x, elbow.y])
+    #     c = np.array([wrist.x, wrist.y])
 
-        radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - \
-                 np.arctan2(a[1]-b[1], a[0]-b[0])
-        angle = np.abs(radians*180.0/np.pi)
+    #     radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - \
+    #              np.arctan2(a[1]-b[1], a[0]-b[0])
+    #     angle = np.abs(radians*180.0/np.pi)
 
-        if angle > 180.0:
-            angle = 360-angle
+    #     if angle > 180.0:
+    #         angle = 360-angle
 
-        return angle
+    #     return angle

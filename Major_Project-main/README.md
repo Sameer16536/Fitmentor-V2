@@ -1,51 +1,6 @@
-backend/
-├── api/                    # Core API functionality
-│   ├── serializers/
-│   │   └── __init__.py
-│   ├── utils/
-│   │   ├── __init__.py
-│   │   └── responses.py
-│   ├── __init__.py
-│   ├── apps.py
-│   ├── urls.py
-│   └── views.py
-├── authentication/         # User authentication
-│   ├── __init__.py
-│   ├── apps.py
-│   ├── models.py
-│   ├── serializers.py
-│   ├── urls.py
-│   └── views.py
-├── exercises/             # Exercise functionality
-│   ├── services/
-│   │   ├── __init__.py
-│   │   └── exercise_analysis.py
-│   ├── utils/
-│   │   ├── __init__.py
-│   │   └── pose_detection.py
-│   ├── __init__.py
-│   ├── apps.py
-│   ├── consumers.py
-│   ├── models.py
-│   ├── serializers.py
-│   ├── urls.py
-│   └── views.py
-├── config/               # Project settings
-│   ├── __init__.py
-│   ├── asgi.py
-│   ├── settings.py
-│   ├── urls.py
-│   └── wsgi.py
-├── ml_models/           # ML model files
-├── media/              # Media storage
-│   └── exercise_videos/
-├── static/            # Static files
-├── .env              # Environment variables
-├── .gitignore
-├── manage.py
-└── requirements.txt
-
-
+```
+python -m daphne config.asgi:application -b 0.0.0.0 -p 8000
+```
 
 ## API Documentation
 ## Authentication Endpoints
