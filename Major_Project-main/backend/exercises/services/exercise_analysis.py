@@ -220,33 +220,40 @@ class ExerciseAnalyzer:
         shoulder = landmarks[self.mp_pose.PoseLandmark.LEFT_SHOULDER.value]
         elbow = landmarks[self.mp_pose.PoseLandmark.LEFT_ELBOW.value]
         wrist = landmarks[self.mp_pose.PoseLandmark.LEFT_WRIST.value]
-        
+        hip = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value]
         # Calculate angle
-        angle = self.calculate_angle(shoulder, elbow, wrist)
-        
+        elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
+        shoulder_angle = self.calculate_angle(hip, shoulder, elbow)
         # Visualize angle
-        cv2.putText(image, str(int(angle)), 
+        cv2.putText(image, str(int(elbow_angle)), 
                     tuple(np.multiply([elbow.x, elbow.y], [640, 480]).astype(int)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(image, str(int(shoulder_angle)), 
+                    tuple(np.multiply([shoulder.x, shoulder.y], [640, 480]).astype(int)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
         
-        # Curl counter logic
-        if angle > 160 and self.stage != "down":
-            self.stage = "down"
+        # Form correction
+        if shoulder_angle < 30:
             self.correct_form = True
-            print("Stage: DOWN")
-        elif angle < 30 and self.stage == 'down':
-            self.stage = "up"
-            self.counter += 1
-            self.correct_form = True
-            print(f"Stage: UP, Counter increased to {self.counter}")
-        
-        # Form feedback
-        if angle > 30 and angle < 160:
-            self.form_feedback = "Complete the full range of motion"
-            self.correct_form = False
-        elif self.correct_form:
-            self.form_feedback = "Good form!"
+            # Curl counter logic
+            if elbow_angle > 160 and self.stage != "down":
+                self.stage = "down"
+            
+                print("Stage: DOWN")
 
+            elif elbow_angle < 30 and self.stage == 'down':
+                self.stage = "up"
+                self.counter += 1
+                print(f"Stage: UP, Counter increased to {self.counter}")
+            # Form feedback
+            if elbow_angle > 30 and elbow_angle < 160:
+                self.form_feedback = "Complete the full range of motion"
+            elif self.correct_form:
+                self.form_feedback = "Good form!"
+        
+        else:
+            self.correct_form = False
+            self.form_feedback = "Incorrect form. Keep your elbows in line with your shoulders."
     def _process_squat(self, landmarks, image):
         """Process squat exercise"""
         # Similar implementation for squats
