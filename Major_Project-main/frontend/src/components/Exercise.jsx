@@ -2,16 +2,41 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import Webcam from 'react-webcam';
 import useWebSocket from '../hooks/useWebSocket';
+import { APIUtility } from '../services/Api';
+import { toast } from 'react-hot-toast';
 
 const Exercise = () => {
     const { exerciseType } = useParams();
     const webcamRef = useRef(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [startTime, setStartTime] = useState(null);
     const lastFrameTimeRef = useRef(0);
+    const exerciseStartTimeRef = useRef(null);
     const FPS = 15; // Limit to 15 frames per second
     const frameInterval = 1000 / FPS;
     
     const { isConnected, error, metrics, sendFrame, connect, disconnect, processedImage } = useWebSocket(exerciseType);
+
+    const [exerciseMetrics, setExerciseMetrics] = useState({
+        counter: 0,
+        form_accuracy: 0,
+        stage: null
+    });
+
+    // Define calories per rep for each exercise
+    const CALORIES_PER_REP = {
+        'bicep_curls': 0.3,
+        'pushups': 0.5,
+        'squats': 0.7,
+        'planks': 0.4  // per minute
+    };
+
+    // Update metrics when received from WebSocket
+    useEffect(() => {
+        if (metrics) {
+            setExerciseMetrics(metrics);
+        }
+    }, [metrics]);
 
     const captureAndSendFrame = useCallback(() => {
         if (!isAnalyzing || !webcamRef.current?.video) return;
@@ -42,13 +67,66 @@ const Exercise = () => {
         }
     }, [isAnalyzing, sendFrame, frameInterval]);
 
-    // Handle start/stop analysis
+    const handleStopAnalysis = async () => {
+        setIsAnalyzing(false);
+        
+        try {
+            if (exerciseMetrics && exerciseStartTimeRef.current) {
+                const duration = Math.floor((Date.now() - exerciseStartTimeRef.current) / 1000);
+                const reps = exerciseMetrics.counter || 0;
+                
+                // Calculate calories
+                let caloriesBurned;
+                if (exerciseType === 'planks') {
+                    caloriesBurned = (duration / 60) * CALORIES_PER_REP[exerciseType];
+                } else {
+                    caloriesBurned = reps * (CALORIES_PER_REP[exerciseType] || 0.3);
+                }
+                
+                const statsPayload = {
+                    exercise_type: exerciseType,
+                    reps: reps,
+                    form_accuracy: exerciseMetrics.form_accuracy || 0,
+                    duration: duration,
+                    calories_burned: Math.round(caloriesBurned * 100) / 100
+                };
+                
+                console.log('Sending stats payload:', statsPayload);
+                
+                const response = await APIUtility.updateUserStats(statsPayload);
+                console.log('Received response:', response);
+                
+                if (response.stats) {
+                    toast.success(
+                        `Exercise completed!\n` +
+                        `Reps: ${reps}\n` +
+                        `Calories: ${Math.round(caloriesBurned * 100) / 100}\n` +
+                        `Total Exercises: ${response.stats.total_exercises}\n` +
+                        `Weekly Workouts: ${response.stats.weekly_workouts}\n` +
+                        `Monthly Progress: ${response.stats.monthly_progress}%\n` +
+                        `Current Streak: ${response.current_streak} days`
+                    );
+                }
+            }
+        } catch (error) {
+            console.error('Error updating stats:', error);
+            toast.error('Failed to update exercise stats');
+        } finally {
+            // Reset everything
+            exerciseStartTimeRef.current = null;
+            setStartTime(null);
+            setExerciseMetrics({ counter: 0, form_accuracy: 0, stage: null });
+        }
+    };
+
     const toggleAnalysis = () => {
         if (!isAnalyzing) {
+            const currentTime = Date.now();
             setIsAnalyzing(true);
-            // WebSocket should already be connected
+            setStartTime(currentTime);
+            exerciseStartTimeRef.current = currentTime;
         } else {
-            setIsAnalyzing(false);
+            handleStopAnalysis();
         }
     };
 

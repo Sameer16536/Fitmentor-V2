@@ -242,4 +242,18 @@ export const APIUtility = {
           "Content-Type": "multipart/form-data",
         },
       }),
+
+    updateExerciseStats: (statsData) =>
+        apiCall({
+            method: "POST",
+            url: "/api/exercises/update-stats/",
+            data: statsData
+        }),
+
+    updateUserStats: (statsData) =>
+        apiCall({
+            method: "POST",
+            url: "/api/auth/update-stats/",
+            data: statsData
+        }),
 };

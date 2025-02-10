@@ -43,8 +43,23 @@ class UserSerializer(serializers.ModelSerializer):
 class UserStatsSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserStats
-        fields = ('total_exercises', 'total_minutes', 'highest_streak', 
-                 'calories_burned', 'created_at')
+        fields = (
+            'total_exercises',
+            'total_minutes',
+            'highest_streak',
+            'calories_burned',
+            'weekly_workouts',
+            'monthly_progress'
+        )
+
+    def to_representation(self, instance):
+        # Refresh from database to get latest stats
+        instance.refresh_from_db()
+        data = super().to_representation(instance)
+        # Round floating point values
+        data['calories_burned'] = round(data['calories_burned'], 2)
+        data['monthly_progress'] = round(data['monthly_progress'], 1)
+        return data
 
 class UserSettingsSerializer(serializers.ModelSerializer):
     class Meta:

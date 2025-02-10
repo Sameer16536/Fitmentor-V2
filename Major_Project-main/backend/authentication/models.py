@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 class UserManager(BaseUserManager):
     def create_user(self, email, username, password=None, **extra_fields):
@@ -46,14 +48,23 @@ class User(AbstractUser):
 
     def update_streak(self):
         today = timezone.now().date()
-        if not self.last_activity:
+        
+        if self.last_activity is None:
+            # First activity
             self.daily_streak = 1
+        elif self.last_activity == today:
+            # Already updated today, don't increment
+            pass
         elif (today - self.last_activity).days == 1:
+            # Consecutive day
             self.daily_streak += 1
-        elif (today - self.last_activity).days > 1:
+        else:
+            # Streak broken
             self.daily_streak = 1
+        
         self.last_activity = today
         self.save()
+        return self.daily_streak
 
 class UserStats(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='stats')
@@ -65,3 +76,34 @@ class UserStats(models.Model):
     monthly_progress = models.FloatField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username}'s stats"
+
+    def update_stats(self, exercise_data):
+        """Update user stats with new exercise data"""
+        self.total_exercises += 1
+        self.total_minutes += exercise_data.get('duration', 0) // 60
+        self.calories_burned += float(exercise_data.get('calories_burned', 0))
+        self.weekly_workouts += 1
+        
+        # Update streak if enough reps
+        if exercise_data.get('reps', 0) >= 5:
+            current_streak = self.user.update_streak()
+            if current_streak > self.highest_streak:
+                self.highest_streak = current_streak
+        
+        # Update monthly progress (20 workouts = 100%)
+        self.monthly_progress = min((self.weekly_workouts / 20) * 100, 100)
+        self.save()
+
+@receiver(post_save, sender=User)
+def create_user_stats(sender, instance, created, **kwargs):
+    if created:
+        UserStats.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_stats(sender, instance, **kwargs):
+    if not hasattr(instance, 'stats'):
+        UserStats.objects.create(user=instance)
+    instance.stats.save()

@@ -7,6 +7,8 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.contrib.auth import authenticate
 from .models import User, UserStats
 from .serializers import UserSerializer, UserStatsSerializer, UserSettingsSerializer
+from rest_framework.views import APIView
+from django.utils import timezone
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -150,3 +152,30 @@ def get_user_achievements(request):
         return Response(achievements)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class UpdateUserStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        try:
+            user = request.user
+            stats = UserStats.objects.get(user=user)
+            
+            # Update stats using the helper method
+            stats.update_stats(request.data)
+            
+            # Get fresh stats
+            updated_stats = UserStats.objects.get(user=user)
+            serializer = UserStatsSerializer(updated_stats)
+            
+            return Response({
+                'message': 'Stats updated successfully',
+                'stats': serializer.data,
+                'current_streak': user.daily_streak
+            })
+            
+        except Exception as e:
+            print(f"Error updating stats: {str(e)}")
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
