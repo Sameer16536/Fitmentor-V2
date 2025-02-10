@@ -12,4 +12,5 @@ urlpatterns = [
     path('progress/', views.get_progress_stats, name='progress_stats'),
     path('achievements/', views.get_user_achievements, name='user_achievements'),
     path('logout/', views.logout_user, name='logout'),
+    path('update-stats/', views.UpdateUserStatsView.as_view(), name='update_user_stats'),
 ]
