@@ -70,10 +70,12 @@ class UserStats(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='stats')
     total_exercises = models.IntegerField(default=0)
     total_minutes = models.IntegerField(default=0)
-    calories_burned = models.FloatField(default=0)
     highest_streak = models.IntegerField(default=0)
-    weekly_workouts = models.IntegerField(default=0)
-    monthly_progress = models.FloatField(default=0)
+    calories_burned = models.FloatField(default=0)
+    weekly_workouts = models.IntegerField(default=0)  # Number of workouts this week
+    monthly_workouts = models.IntegerField(default=0)  # Number of workouts this month
+    current_streak = models.IntegerField(default=0)    # Current active streak
+    last_workout_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -94,7 +96,9 @@ class UserStats(models.Model):
                 self.highest_streak = current_streak
         
         # Update monthly progress (20 workouts = 100%)
-        self.monthly_progress = min((self.weekly_workouts / 20) * 100, 100)
+        self.monthly_workouts += 1
+        self.current_streak = current_streak
+        self.last_workout_date = timezone.now().date()
         self.save()
 
 @receiver(post_save, sender=User)

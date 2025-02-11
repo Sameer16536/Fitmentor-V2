@@ -11,25 +11,37 @@ import Dashboard from './pages/Dashboard';
 import VideoUpload from './components/VideoUpload';
 import Profile from './pages/Profile';
 import VideoAnalysis from './components/VideoAnalysis';
+import NavBar from './components/Navbar';
+import ExercisesList from './pages/ExercisesList';
 
-const theme = createTheme({
+const darkTheme = createTheme({
   palette: {
-    mode: 'light',
+    mode: 'dark',
+    primary: {
+      main: '#3f51b5',
+    },
+    secondary: {
+      main: '#f50057',
+    },
+    background: {
+      default: '#121212',
+      paper: '#1e1e1e',
+    },
   },
 });
 
-// Protected Route Component
+// Protected Route with NavBar Component
 const ProtectedRoute = ({ children }) => {
   const authToken = localStorage.getItem("authToken");
   if (!authToken) {
     return <Navigate to="/login" replace />;
   }
-  return children;
+  return <NavBar>{children}</NavBar>;
 };
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={darkTheme}>
       <CssBaseline />
       <AuthProvider>
         <BrowserRouter>
@@ -76,6 +88,11 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/exercises" element={
+              <ProtectedRoute>
+                <ExercisesList />
+              </ProtectedRoute>
+            } />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </BrowserRouter>

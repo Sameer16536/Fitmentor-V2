@@ -27,6 +27,10 @@ const Main = styled('main')(({ theme }) => ({
   flexGrow: 1,
   padding: 0,
   marginLeft: 0,
+  backgroundColor: theme.palette.background.default,
+  minHeight: '100vh',
+  display: 'flex',
+  flexDirection: 'column'
 }));
 
 const NavBar = ({ children }) => {
@@ -59,12 +63,19 @@ const NavBar = ({ children }) => {
   ];
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column',
+      bgcolor: 'background.default', 
+      minHeight: '100vh',
+      width: '100%'
+    }}>
       <AppBar
         position="fixed"
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          bgcolor: '#4F46E5',
+          bgcolor: 'background.paper',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
         }}
       >
         <Toolbar>
@@ -82,7 +93,6 @@ const NavBar = ({ children }) => {
           </Typography>
           <IconButton color="inherit" onClick={handleLogout}>
             <LogoutIcon />
-
           </IconButton>
         </Toolbar>
       </AppBar>
@@ -92,20 +102,21 @@ const NavBar = ({ children }) => {
         open={open}
         onClose={handleDrawerToggle}
         ModalProps={{
-          keepMounted: true, // Better mobile performance
+          keepMounted: true,
         }}
         sx={{
           '& .MuiDrawer-paper': {
             width: drawerWidth,
             boxSizing: 'border-box',
-            bgcolor: 'white',
+            bgcolor: 'background.paper',
+            borderRight: '1px solid rgba(255, 255, 255, 0.12)',
             '& .MuiListItem-root': {
               '&:hover': {
-                bgcolor: '#EEF2FF',
+                bgcolor: 'rgba(255, 255, 255, 0.08)',
               },
             },
             '& .MuiListItemIcon-root': {
-              color: '#4F46E5',
+              color: 'primary.main',
             },
           },
         }}
@@ -129,7 +140,14 @@ const NavBar = ({ children }) => {
       </Drawer>
       <Main>
         <Toolbar />
-        {children}
+        <Box sx={{ 
+          flexGrow: 1,
+          bgcolor: 'background.default',
+          minHeight: 'calc(100vh - 64px)',
+          width: '100%'
+        }}>
+          {children}
+        </Box>
       </Main>
     </Box>
   );

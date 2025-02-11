@@ -59,88 +59,88 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <NavBar>
-      <div className="min-h-screen bg-gray-100 py-6 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Choose an Exercise</h1>
-          
-          {/* Exercise Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {exercises.map((exercise) => (
-              <div
-                key={exercise.id}
-                className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col h-full"
-              >
-                {/* Image Container with Fixed Aspect Ratio */}
-                <div className="relative pt-[56.25%] w-full">
-                  <img
-                    src={exercise.image}
-                    alt={exercise.name}
-                    className="absolute top-0 left-0 w-full h-full object-cover rounded-t-lg"
-                  />
-                </div>
-
-                {/* Content Container */}
-                <div className="p-6 flex flex-col flex-grow">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {exercise.name}
-                  </h3>
-                  <p className="text-gray-600 mb-4 flex-grow">
-                    {exercise.description}
-                  </p>
-                  
-                  {/* Buttons Container */}
-                  <div className="flex flex-col sm:flex-row gap-2 mt-auto">
-                    <button
-                      onClick={() => navigate(`/exercise/${exercise.id}/realtime`)}
-                      className="w-full sm:w-1/2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-                    >
-                      Start Realtime
-                    </button>
-                    <button
-                      onClick={() => navigate(`/exercise/${exercise.id}/upload`)}
-                      className="w-full sm:w-1/2 px-4 py-2 border border-indigo-600 text-indigo-600 rounded-md hover:bg-indigo-50 transition-colors"
-                    >
-                      Upload Video
-                    </button>
-                  </div>
-                </div>
+    <div className="min-h-screen bg-gray-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        
+        {/* Exercise Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {exercises.map((exercise) => (
+            <div
+              key={exercise.id}
+              className="bg-gray-800 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full border border-gray-700"
+            >
+              {/* Image Container */}
+              <div className="relative pt-[56.25%] w-full">
+                <img
+                  src={exercise.image}
+                  alt={exercise.name}
+                  className="absolute top-0 left-0 w-full h-full object-cover rounded-t-lg opacity-90 hover:opacity-100 transition-opacity"
+                />
               </div>
-            ))}
-          </div>
 
-          {/* Recent Exercises Section */}
-          {recentExercises.length > 0 && (
-            <div className="mt-12">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Exercises</h2>
-              <div className="grid grid-cols-1 gap-4">
-                {recentExercises.map((exercise) => (
-                  <div
-                    key={exercise.id}
-                    className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow"
+              {/* Content Container */}
+              <div className="p-6 flex flex-col flex-grow">
+                <h3 className="text-xl font-semibold text-white mb-2">
+                  {exercise.name}
+                </h3>
+                <p className="text-gray-400 mb-4 flex-grow">
+                  {exercise.description}
+                </p>
+                
+                {/* Buttons Container */}
+                <div className="flex flex-col sm:flex-row gap-2 mt-auto">
+                  <button
+                    onClick={() => navigate(`/exercise/${exercise.id}/realtime`)}
+                    className="w-full sm:w-1/2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                   >
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div>
-                        <h3 className="text-lg font-semibold">{exercise.exercise_name}</h3>
-                        <p className="text-sm text-gray-600">
-                          Accuracy: {exercise.form_accuracy}%
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => navigate(`/exercise/${exercise.id}/analysis`)}
-                        className="w-full sm:w-auto px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-                      >
-                        View Analysis
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                    Start 
+                  </button>
+                  <button
+                    onClick={() => navigate(`/exercise/${exercise.id}/upload`)}
+                    className="w-full sm:w-1/2 px-4 py-2 border border-blue-600 text-blue-400 rounded-md hover:bg-blue-900/30 transition-colors"
+                  >
+                    Upload Video
+                  </button>
+                </div>
               </div>
             </div>
-          )}
+          ))}
         </div>
+
+        {/* Recent Exercises Section */}
+        {recentExercises.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold text-white mb-6">Recent Exercises</h2>
+            <div className="grid grid-cols-1 gap-4">
+              {recentExercises.map((exercise) => (
+                <div
+                  key={exercise.id}
+                  className="bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow border border-gray-700"
+                >
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">
+                        {exercise.exercise_name}
+                      </h3>
+                      <p className="text-sm text-gray-400">
+                        Accuracy: {exercise.form_accuracy}%
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/exercise/${exercise.id}/analysis`)}
+                      className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      View Analysis
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-    </NavBar>
+    </div>
   );
 };
 
