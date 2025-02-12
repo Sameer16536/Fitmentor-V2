@@ -58,7 +58,7 @@ const NavBar = ({ children }) => {
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Exercises', icon: <FitnessCenterIcon />, path: '/exercises' },
-    { text: 'Progress', icon: <BarChartIcon />, path: '/progress' },
+    { text: 'Guided Workouts', icon: <BarChartIcon />, path: '/guide' },
     { text: 'Profile', icon: <AccountCircleIcon />, path: '/profile' },
   ];
 

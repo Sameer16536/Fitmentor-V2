@@ -13,7 +13,7 @@ import Profile from './pages/Profile';
 import VideoAnalysis from './components/VideoAnalysis';
 import NavBar from './components/Navbar';
 import ExercisesList from './pages/ExercisesList';
-
+import Guide from './pages/Guide';
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
@@ -77,6 +77,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+                        <Route
+              path="/guide"
+              element={
+                <ProtectedRoute>
+                  <Guide/>
                 </ProtectedRoute>
               }
             />
