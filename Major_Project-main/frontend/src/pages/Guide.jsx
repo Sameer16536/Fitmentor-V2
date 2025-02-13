@@ -1,5 +1,4 @@
-import React from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -10,6 +9,10 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
+  Card,
+  CardContent,
+  CardMedia,
+  CardActionArea,
 } from '@mui/material';
 import {
   FitnessCenter,
@@ -142,22 +145,85 @@ const exerciseGuides = {
 };
 
 const Guide = () => {
-  const { exerciseType } = useParams();
-  const guide = exerciseGuides[exerciseType];
+  const [selectedExercise, setSelectedExercise] = useState(null);
 
-  if (!guide) {
+  const handleCardClick = (exerciseType) => {
+    setSelectedExercise(exerciseType);
+  };
+
+  const renderExerciseCards = () => (
+    <Grid container spacing={3} padding={3}>
+      {Object.entries(exerciseGuides).map(([type, guide]) => (
+        <Grid item xs={12} sm={6} md={4} key={type}>
+          <Card 
+            elevation={3}
+            sx={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              transition: 'transform 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)'
+              }
+            }}
+          >
+            <CardActionArea onClick={() => handleCardClick(type)}>
+              <Box sx={{ 
+                width: '100%',
+                pt: '75%', // This creates a 4:3 aspect ratio
+                position: 'relative'
+              }}>
+                <CardMedia
+                  component="img"
+                  image={guide.image}
+                  alt={guide.title}
+                  sx={{ 
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: 'center',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.12)'
+                  }}
+                />
+              </Box>
+              <CardContent>
+                <Typography gutterBottom variant="h5" component="div">
+                  {guide.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {guide.description}
+                </Typography>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        </Grid>
+      ))}
+    </Grid>
+  );
+
+  const renderDetailedGuide = () => {
+    const guide = exerciseGuides[selectedExercise];
     return (
-      <Box className="min-h-screen bg-gray-900 py-12 px-4">
-        <Typography variant="h4" color="error" align="center">
-          Exercise guide not found
-        </Typography>
-      </Box>
-    );
-  }
-
-  return (
-    <Box className="min-h-screen bg-gray-900 py-12 px-4">
       <Paper elevation={3} className="max-w-4xl mx-auto p-6 rounded-xl">
+        {/* Back button */}
+        <Box 
+          sx={{ 
+            cursor: 'pointer', 
+            mb: 2,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}
+          onClick={() => setSelectedExercise(null)}
+        >
+          <Typography variant="body1" color="primary">
+            ← Back to all guides
+          </Typography>
+        </Box>
+
         <Grid container spacing={4}>
           {/* Header Section */}
           <Grid item xs={12}>
@@ -172,12 +238,27 @@ const Guide = () => {
 
           {/* Image Section */}
           <Grid item xs={12} md={6}>
-            <img
-              src={guide.image}
-              alt={guide.title}
-              className="w-full h-auto rounded-lg shadow-lg"
-              style={{ maxHeight: '400px', objectFit: 'cover' }}
-            />
+            <Box
+              sx={{
+                width: '100%',
+                height: '400px',
+                position: 'relative',
+                borderRadius: 2,
+                overflow: 'hidden',
+                boxShadow: 3
+              }}
+            >
+              <img
+                src={guide.image}
+                alt={guide.title}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center'
+                }}
+              />
+            </Box>
           </Grid>
 
           {/* Instructions Section */}
@@ -235,6 +316,12 @@ const Guide = () => {
           </Grid>
         </Grid>
       </Paper>
+    );
+  };
+
+  return (
+    <Box className="min-h-screen bg-gray-900 py-12 px-4">
+      {selectedExercise ? renderDetailedGuide() : renderExerciseCards()}
     </Box>
   );
 };

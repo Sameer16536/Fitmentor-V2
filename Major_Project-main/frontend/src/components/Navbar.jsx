@@ -88,7 +88,7 @@ const NavBar = ({ children }) => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }} onClick={() => navigate('/dashboard')} className='cursor-pointer'>
             Fit Mentor
           </Typography>
           <IconButton color="inherit" onClick={handleLogout}>
