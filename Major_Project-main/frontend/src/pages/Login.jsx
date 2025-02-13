@@ -1,40 +1,48 @@
 import React, { useState } from "react";
-import {Link, useNavigate} from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom';
 import { APIUtility } from "../services/Api";
-
+import { Google as GoogleIcon } from '@mui/icons-material';
+import {
+    Box,
+    TextField,
+    Button,
+    Typography,
+    Container,
+    Paper,
+    Divider,
+    Alert,
+} from '@mui/material';
 
 const Login = () => {
-    const navigate = useNavigate()
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         email: "",
         password: "",
     });
+    const [error, setError] = useState("");
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
     };
 
-
-
     const handleSignIn = async (e) => {
         e.preventDefault();
+        setError("");
         const payload = {
             email: formData.email,
             password: formData.password
         };
-        
+
         try {
             const response = await APIUtility.loginUser(payload);
-            console.log("Login response:", response);
-
             if (!response.access) {
                 throw new Error("Invalid credentials");
             }
-            
+
             localStorage.setItem("authToken", response.access);
             localStorage.setItem("refreshToken", response.refresh);
-            
+
             if (response.user) {
                 localStorage.setItem("user", JSON.stringify(response.user));
             }
@@ -42,71 +50,114 @@ const Login = () => {
             navigate("/dashboard");
         } catch (error) {
             console.error("Login error:", error);
-            alert(error.response?.data?.error || error.message || "Invalid credentials");
+            setError(error.response?.data?.error || error.message || "Invalid credentials");
         }
     };
 
-
     const handleGoogleAuth = () => {
-        window.location.href = "http://localhost:5000/api/auth/google"; 
+        window.location.href = "http://localhost:5000/api/auth/google";
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-            <div className="bg-white p-8 rounded shadow-md w-96">
-                <h1 className="text-2xl font-bold mb-4">Sign In</h1>
-                <form onSubmit={handleSignIn}>
-                    <div className="mb-4">
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                            Email Address
-                        </label>
-                        <input
-                            type="email"
+        <Box
+            sx={{
+                minHeight: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: 'background.default'
+            }}
+        >
+            <Container maxWidth="sm">
+                <Paper
+                    elevation={3}
+                    sx={{
+                        p: 4,
+                        bgcolor: 'background.paper',
+                        borderRadius: 2,
+                        border: '1px solid rgba(255, 255, 255, 0.12)'
+                    }}
+                >
+                    <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ color: 'white', mb: 3 }}>
+                        Welcome Back
+                    </Typography>
+
+                    {error && (
+                        <Alert severity="error" sx={{ mb: 3 }}>
+                            {error}
+                        </Alert>
+                    )}
+
+                    <form onSubmit={handleSignIn}>
+                        <TextField
+                            fullWidth
+                            label="Email Address"
                             name="email"
-                            id="email"
+                            type="email"
                             value={formData.email}
                             onChange={handleChange}
                             required
-                            className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+                            sx={{ mb: 2 }}
                         />
-                    </div>
-                    <div className="mb-4">
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                            Password
-                        </label>
-                        <input
-                            type="password"
+                        <TextField
+                            fullWidth
+                            label="Password"
                             name="password"
-                            id="password"
+                            type="password"
                             value={formData.password}
                             onChange={handleChange}
                             required
-                            className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+                            sx={{ mb: 3 }}
                         />
-                    </div>
-                    <button
-                        type="submit"
-                        className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
-                    >
-                        Sign In
-                    </button>
-                </form>
-                <div className="mt-6">
-                    <button
+
+                        <Button
+                            type="submit"
+                            fullWidth
+                            variant="contained"
+                            size="large"
+                            sx={{
+                                mb: 2,
+                                bgcolor: 'primary.main',
+                                '&:hover': { bgcolor: 'primary.dark' }
+                            }}
+                        >
+                            Sign In
+                        </Button>
+                    </form>
+
+                    <Divider sx={{ my: 3, bgcolor: 'rgba(255, 255, 255, 0.12)' }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                            OR
+                        </Typography>
+                    </Divider>
+
+                    <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<GoogleIcon />}
                         onClick={handleGoogleAuth}
-                        className="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
+                        sx={{
+                            mb: 3,
+                            borderColor: 'error.main',
+                            color: 'error.main',
+                            '&:hover': {
+                                borderColor: 'error.dark',
+                                bgcolor: 'rgba(211, 47, 47, 0.04)'
+                            }
+                        }}
                     >
                         Sign In with Google
-                    </button>
-                </div>
-                <p className="text-sm text-gray-600 mt-4 text-center">
-                    Don't have an account?{" "}
-                    <Link to="/signup" className="text-blue-600 hover:underline">
-                        Sign Up
-                    </Link>
-                </p>
-            </div>
-        </div>
+                    </Button>
+
+                    <Typography variant="body2" align="center" sx={{ color: 'text.secondary' }}>
+                        Don't have an account?{' '}
+                        <Link to="/signup" style={{ color: '#90caf9', textDecoration: 'none' }}>
+                            Sign Up
+                        </Link>
+                    </Typography>
+                </Paper>
+            </Container>
+        </Box>
     );
 };
 

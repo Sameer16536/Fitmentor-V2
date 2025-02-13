@@ -49,7 +49,9 @@ class UserStatsSerializer(serializers.ModelSerializer):
             'highest_streak',
             'calories_burned',
             'weekly_workouts',
-            'monthly_progress'
+            'monthly_workouts',
+            'current_streak',
+            'last_workout_date'
         )
 
     def to_representation(self, instance):
@@ -58,7 +60,6 @@ class UserStatsSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         # Round floating point values
         data['calories_burned'] = round(data['calories_burned'], 2)
-        data['monthly_progress'] = round(data['monthly_progress'], 1)
         return data
 
 class UserSettingsSerializer(serializers.ModelSerializer):
