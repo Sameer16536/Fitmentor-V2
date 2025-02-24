@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { APIUtility } from '../services/Api';
-import NavBar from './Navbar';
+import {
+  Box,
+  Typography,
+  Paper,
+  Grid,
+  CircularProgress,
+  Divider,
+} from '@mui/material';
 
 const VideoAnalysis = ({ exerciseId, exerciseType }) => {
     const [analysis, setAnalysis] = useState(null);
@@ -17,13 +24,11 @@ const VideoAnalysis = ({ exerciseId, exerciseType }) => {
                 const response = await APIUtility.getVideoAnalysis(exerciseId, exerciseType);
                 setAnalysis(response.metrics);
                 
-                // Load and play the uploaded video
                 if (videoRef.current) {
                     videoElement = videoRef.current;
                     videoElement.src = response.video_url;
                     await videoElement.play();
                     
-                    // Set up canvas for pose overlay
                     const canvas = canvasRef.current;
                     canvas.width = videoElement.videoWidth;
                     canvas.height = videoElement.videoHeight;
@@ -46,69 +51,155 @@ const VideoAnalysis = ({ exerciseId, exerciseType }) => {
     }, [exerciseId, exerciseType]);
 
     return (
-        <NavBar>
-            <div className="max-w-6xl mx-auto py-8 px-4">
-                <div className="bg-white rounded-lg shadow-md p-6">
-                    <h2 className="text-2xl font-bold mb-6">Exercise Analysis</h2>
+        <Box sx={{ 
+            minHeight: '100vh',
+            bgcolor: 'background.default',
+            py: 4,
+            px: { xs: 2, md: 4 }
+        }}>
+            <Paper 
+                elevation={3} 
+                sx={{ 
+                    maxWidth: '1200px', 
+                    mx: 'auto',
+                    bgcolor: 'background.paper',
+                    borderRadius: 2,
+                    overflow: 'hidden'
+                }}
+            >
+                <Box sx={{ p: 4 }}>
+                    <Typography variant="h4" gutterBottom sx={{ color: 'primary.main' }}>
+                        Exercise Analysis
+                    </Typography>
+                    <Divider sx={{ mb: 4 }} />
 
                     {error && (
-                        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-                            {error}
-                        </div>
+                        <Box sx={{ 
+                            mb: 3, 
+                            p: 2, 
+                            bgcolor: 'error.dark',
+                            borderRadius: 1,
+                            color: 'error.contrastText'
+                        }}>
+                            <Typography>{error}</Typography>
+                        </Box>
                     )}
 
                     {loading ? (
-                        <div className="flex justify-center items-center h-64">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-                        </div>
+                        <Box sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'center', 
+                            alignItems: 'center', 
+                            minHeight: '300px'
+                        }}>
+                            <CircularProgress />
+                        </Box>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Grid container spacing={4}>
                             {/* Video Display Section */}
-                            <div className="relative">
-                                <video 
-                                    ref={videoRef}
-                                    className="w-full rounded-lg"
-                                    controls
-                                    playsInline
-                                >
-                                    Your browser does not support the video tag.
-                                </video>
-                                <canvas 
-                                    ref={canvasRef}
-                                    className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                                />
-                            </div>
+                            <Grid item xs={12} md={6}>
+                                <Box sx={{ 
+                                    position: 'relative',
+                                    borderRadius: 2,
+                                    overflow: 'hidden',
+                                    bgcolor: 'background.default'
+                                }}>
+                                    <video 
+                                        ref={videoRef}
+                                        style={{
+                                            width: '100%',
+                                            height: 'auto',
+                                            display: 'block'
+                                        }}
+                                        controls
+                                        playsInline
+                                    >
+                                        Your browser does not support the video tag.
+                                    </video>
+                                    <canvas 
+                                        ref={canvasRef}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '100%',
+                                            height: '100%',
+                                            pointerEvents: 'none'
+                                        }}
+                                    />
+                                </Box>
+                            </Grid>
 
                             {/* Analysis Results Section */}
-                            <div className="space-y-4">
-                                <div className="bg-gray-50 p-4 rounded-lg">
-                                    <h3 className="text-lg font-semibold mb-2">Performance Metrics</h3>
-                                    <div className="space-y-2">
-                                        <p>Total Reps: {analysis?.total_reps || 0}</p>
-                                        <p>Form Accuracy: {analysis?.form_accuracy ? `${(analysis.form_accuracy ).toFixed(1)}%` : '0%'}</p>
-                                        <p>Overall Feedback: {analysis?.feedback || 'No feedback available'}</p>
-                                    </div>
-                                </div>
+                            <Grid item xs={12} md={6}>
+                                <Box sx={{ 
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 3
+                                }}>
+                                    {/* Performance Metrics */}
+                                    <Paper sx={{ 
+                                        p: 3, 
+                                        bgcolor: 'background.default',
+                                        borderRadius: 2
+                                    }}>
+                                        <Typography variant="h6" gutterBottom color="primary">
+                                            Performance Metrics
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                            <Typography>
+                                                Total Reps: {analysis?.total_reps || 0}
+                                            </Typography>
+                                            <Typography>
+                                                Form Accuracy: {analysis?.form_accuracy ? `${(analysis.form_accuracy).toFixed(1)}%` : '0%'}
+                                            </Typography>
+                                            <Typography>
+                                                Overall Feedback: {analysis?.feedback || 'No feedback available'}
+                                            </Typography>
+                                        </Box>
+                                    </Paper>
 
-                                <div className="bg-gray-50 p-4 rounded-lg">
-                                    <h3 className="text-lg font-semibold mb-2">Form Analysis</h3>
-                                    <div className="space-y-2">
-                                        {analysis?.form_details?.map((detail, index) => (
-                                            <div key={index} className="flex items-center">
-                                                <span className={`w-2 h-2 rounded-full mr-2 ${
-                                                    detail.correct ? 'bg-green-500' : 'bg-red-500'
-                                                }`}></span>
-                                                <p>{detail.message}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                                    {/* Form Analysis */}
+                                    <Paper sx={{ 
+                                        p: 3, 
+                                        bgcolor: 'background.default',
+                                        borderRadius: 2
+                                    }}>
+                                        <Typography variant="h6" gutterBottom color="primary">
+                                            Form Analysis
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                            {analysis?.form_details?.map((detail, index) => (
+                                                <Box 
+                                                    key={index} 
+                                                    sx={{ 
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 1
+                                                    }}
+                                                >
+                                                    <Box 
+                                                        sx={{ 
+                                                            width: 8,
+                                                            height: 8,
+                                                            borderRadius: '50%',
+                                                            bgcolor: detail.correct ? 'success.main' : 'error.main'
+                                                        }} 
+                                                    />
+                                                    <Typography>
+                                                        {detail.message}
+                                                    </Typography>
+                                                </Box>
+                                            ))}
+                                        </Box>
+                                    </Paper>
+                                </Box>
+                            </Grid>
+                        </Grid>
                     )}
-                </div>
-            </div>
-        </NavBar>
+                </Box>
+            </Paper>
+        </Box>
     );
 };
 

@@ -5,7 +5,7 @@ import cv2
 import os
 from django.conf import settings
 from pathlib import Path
-
+import time
 class ExerciseAnalyzer:
     def __init__(self, exercise_type):
         # Initialize for specific exercise type
@@ -254,12 +254,177 @@ class ExerciseAnalyzer:
         else:
             self.correct_form = False
             self.form_feedback = "Incorrect form. Keep your elbows in line with your shoulders."
+            
+            
     def _process_squat(self, landmarks, image):
         """Process squat exercise"""
-        # Similar implementation for squats
-        pass
+        # Get coordinates
+        hip = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value]
+        knee = landmarks[self.mp_pose.PoseLandmark.LEFT_KNEE.value]
+        ankle = landmarks[self.mp_pose.PoseLandmark.LEFT_ANKLE.value]
+        
+        # Calculate angles
+        knee_angle = self.calculate_angle(hip, knee, ankle)
+        
+        # Visualize angle
+        cv2.putText(image, str(int(knee_angle)), 
+                    tuple(np.multiply([knee.x, knee.y], [640, 480]).astype(int)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+        
+        # Form correction
+        if knee_angle > 160:
+            self.stage = "up"
+            self.correct_form = True
+        elif knee_angle < 90 and self.stage == "up":
+            self.stage = "down"
+            self.counter += 1
+            print(f"Stage: DOWN, Counter increased to {self.counter}")
+            
+        # Form feedback
+        if knee_angle > 90 and knee_angle < 160:
+            self.correct_form = False
+            self.form_feedback = "Squat deeper for full range of motion"
+        elif knee_angle > 160:
+            self.correct_form = True
+            self.form_feedback = "Good form! Now squat down"
+        elif knee_angle < 90:
+            self.correct_form = True
+            self.form_feedback = "Good depth! Now stand up"
 
     def _process_pushup(self, landmarks, image):
         """Process pushup exercise"""
-        # Similar implementation for pushups
-        pass 
+        # Get coordinates
+        shoulder = landmarks[self.mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+        elbow = landmarks[self.mp_pose.PoseLandmark.LEFT_ELBOW.value]
+        wrist = landmarks[self.mp_pose.PoseLandmark.LEFT_WRIST.value]
+        hip = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value]
+        
+        # Calculate angles
+        elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
+        body_angle = self.calculate_angle(shoulder, hip, ankle)
+        
+        # Visualize angles
+        cv2.putText(image, str(int(elbow_angle)), 
+                    tuple(np.multiply([elbow.x, elbow.y], [640, 480]).astype(int)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(image, str(int(body_angle)), 
+                    tuple(np.multiply([hip.x, hip.y], [640, 480]).astype(int)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+        
+        # Form correction
+        if body_angle > 160:  # Check if body is straight
+            self.correct_form = True
+            if elbow_angle > 160 and self.stage != "down":
+                self.stage = "down"
+                print("Stage: UP")
+            elif elbow_angle < 90 and self.stage == "down":
+                self.stage = "up"
+                self.counter += 1
+                print(f"Stage: DOWN, Counter increased to {self.counter}")
+                
+            # Form feedback
+            if elbow_angle > 90 and elbow_angle < 160:
+                self.form_feedback = "Lower your body more"
+            elif self.correct_form:
+                self.form_feedback = "Good form!"
+        else:
+            self.correct_form = False
+            self.form_feedback = "Keep your body straight"
+
+    def _process_plank(self, landmarks, image):
+        """Process plank exercise with timer functionality"""
+        # Get coordinates
+        shoulder = landmarks[self.mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+        hip = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value]
+        ankle = landmarks[self.mp_pose.PoseLandmark.LEFT_ANKLE.value]
+        
+        # Calculate body alignment angle
+        body_angle = self.calculate_angle(shoulder, hip, ankle)
+        
+        # Initialize timer attributes if not exists
+        if not hasattr(self, 'plank_start_time'):
+            self.plank_start_time = None
+            self.plank_duration = 0
+            self.timer_running = False
+        
+        # Form correction and timer logic
+        if 160 <= body_angle <= 180:
+            self.correct_form = True
+            # Start or continue timer
+            if not self.timer_running:
+                if self.plank_start_time is None:
+                    self.plank_start_time = time.time()
+                else:
+                    # Resume from pause - adjust start time to maintain accumulated duration
+                    self.plank_start_time = time.time() - self.plank_duration
+                self.timer_running = True
+            
+            # Update duration if timer is running
+            if self.timer_running:
+                self.plank_duration = time.time() - self.plank_start_time
+                self.form_feedback = f"Excellent plank form! Duration: {int(self.plank_duration)}s"
+        else:
+            self.correct_form = False
+            # Pause timer
+            if self.timer_running:
+                self.timer_running = False
+            
+            # Form feedback based on angle
+            if body_angle < 160:
+                self.form_feedback = f"Raise your hips! Timer paused at {int(self.plank_duration)}s"
+            else:
+                self.form_feedback = f"Lower your hips! Timer paused at {int(self.plank_duration)}s"
+        
+        # Visualize angle and timer
+        cv2.putText(image, str(int(body_angle)), 
+                    tuple(np.multiply([hip.x, hip.y], [640, 480]).astype(int)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+        
+        # Display timer
+        timer_text = f"Time: {int(self.plank_duration)}s"
+        cv2.putText(image, timer_text,
+                    (10, 30),  # Position in top-left corner
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        
+        # Return duration for metrics
+        return self.plank_duration
+
+    def _process_lunge(self, landmarks, image):
+        """Process lunge exercise"""
+        # Get coordinates
+        hip = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value]
+        knee = landmarks[self.mp_pose.PoseLandmark.LEFT_KNEE.value]
+        ankle = landmarks[self.mp_pose.PoseLandmark.LEFT_ANKLE.value]
+        shoulder = landmarks[self.mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+        
+        # Calculate angles
+        knee_angle = self.calculate_angle(hip, knee, ankle)
+        torso_angle = self.calculate_angle(shoulder, hip, knee)
+        
+        # Visualize angles
+        cv2.putText(image, str(int(knee_angle)), 
+                    tuple(np.multiply([knee.x, knee.y], [640, 480]).astype(int)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(image, str(int(torso_angle)), 
+                    tuple(np.multiply([hip.x, hip.y], [640, 480]).astype(int)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+        
+        # Form correction
+        if torso_angle > 160:  # Check if torso is upright
+            self.correct_form = True
+            if knee_angle > 160 and self.stage != "down":
+                self.stage = "down"
+                print("Stage: UP")
+            elif knee_angle < 90 and self.stage == "down":
+                self.stage = "up"
+                self.counter += 1
+                print(f"Stage: DOWN, Counter increased to {self.counter}")
+                
+            # Form feedback
+            if knee_angle > 90 and knee_angle < 160:
+                self.form_feedback = "Lower your back knee more"
+            elif self.correct_form:
+                self.form_feedback = "Good form!"
+        else:
+            self.correct_form = False
+            self.form_feedback = "Keep your torso upright"
