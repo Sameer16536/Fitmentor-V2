@@ -69,6 +69,7 @@ const Exercise = () => {
 
     const handleStopAnalysis = async () => {
         setIsAnalyzing(false);
+        disconnect();
         
         try {
             if (exerciseMetrics && exerciseStartTimeRef.current) {
@@ -139,11 +140,13 @@ const Exercise = () => {
 
     // Effect for WebSocket connection
     useEffect(() => {
-        connect(); // Connect when component mounts
+        if (isAnalyzing) {
+            connect(); // Only connect when analysis is started
+        }
         return () => {
             disconnect(); // Disconnect when component unmounts
         };
-    }, [connect, disconnect]);
+    }, [connect, disconnect, isAnalyzing]);
 
     return (
         <div className="flex flex-col items-center p-4">
@@ -169,13 +172,11 @@ const Exercise = () => {
 
             <button
                 onClick={toggleAnalysis}
-                disabled={!isConnected}
                 className={`mt-4 px-6 py-2 rounded-full font-semibold ${
-                    !isConnected ? 'bg-gray-400' :
                     isAnalyzing ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
                 } text-white transition-colors`}
             >
-                {!isConnected ? 'Connecting...' : isAnalyzing ? 'Stop' : 'Start'} Analysis
+                {isAnalyzing ? 'Stop' : 'Start'} Analysis
             </button>
 
             {/* Metrics Display */}
