@@ -64,12 +64,17 @@ const useWebSocket = (exerciseType) => {
 
     const disconnect = useCallback(() => {
         if (wsRef.current) {
-            wsRef.current.close(1000, 'Component unmounted');
+            wsRef.current.close(1000, 'Analysis stopped');
             wsRef.current = null;
         }
         setIsConnected(false);
         setMetrics(null);
         setProcessedImage(null);
+        // Clear any existing reconnection timeout
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+        }
     }, []);
 
     const sendFrame = useCallback((frame) => {
