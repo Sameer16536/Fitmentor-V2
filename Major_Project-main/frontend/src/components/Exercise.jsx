@@ -5,6 +5,47 @@ import useWebSocket from '../hooks/useWebSocket';
 import { APIUtility } from '../services/Api';
 import { toast } from 'react-hot-toast';
 
+
+const synth = window.speechSynthesis; // Global instance
+
+const useSpeechQueue = () => {
+    const [queue, setQueue] = useState([]);
+    const isSpeaking = useRef(false);
+
+    const speakNext = () => {
+        if (isSpeaking.current || queue.length === 0) return;
+
+        isSpeaking.current = true;
+        const nextFeedback = queue[0]; // Get the first item in the queue
+        setQueue((prev) => prev.slice(1)); // Remove the first item from the queue
+
+        const utterance = new SpeechSynthesisUtterance(nextFeedback);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9; // Slow down for clarity
+
+        utterance.onend = () => {
+            isSpeaking.current = false; // Mark speech as finished
+            speakNext(); // Speak the next feedback in the queue
+        };
+
+        synth.speak(utterance);
+    };
+
+    const addToQueue = (feedback) => {
+        setQueue((prev) => [...prev, feedback]); // Add new feedback to queue
+        if (!isSpeaking.current) speakNext(); // Start speaking if idle
+    };
+
+    const clearQueue = () => {
+        setQueue([]); // Clear all pending feedback
+        synth.cancel(); // Stop any ongoing speech
+        isSpeaking.current = false;
+    };
+
+    return { addToQueue, clearQueue };
+};
+
+
 const Exercise = () => {
     const { exerciseType } = useParams();
     const webcamRef = useRef(null);
@@ -14,7 +55,7 @@ const Exercise = () => {
     const exerciseStartTimeRef = useRef(null);
     const FPS = 15; // Limit to 15 frames per second
     const frameInterval = 1000 / FPS;
-    
+    const { addToQueue, clearQueue } = useSpeechQueue();
     const { isConnected, error, metrics, sendFrame, connect, disconnect, processedImage } = useWebSocket(exerciseType);
 
     const [exerciseMetrics, setExerciseMetrics] = useState({
@@ -70,6 +111,7 @@ const Exercise = () => {
     const handleStopAnalysis = async () => {
         setIsAnalyzing(false);
         disconnect();
+        clearQueue()
         
         try {
             if (exerciseMetrics && exerciseStartTimeRef.current) {
@@ -147,6 +189,17 @@ const Exercise = () => {
             disconnect(); // Disconnect when component unmounts
         };
     }, [connect, disconnect, isAnalyzing]);
+
+
+    useEffect(() => {
+        if (isAnalyzing && metrics?.feedback) {
+            addToQueue(metrics.feedback);
+        }
+    }, [metrics, isAnalyzing]);
+  
+
+
+
 
     return (
         <div className="flex flex-col items-center p-4">
