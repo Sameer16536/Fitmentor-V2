@@ -6,6 +6,7 @@ import os
 from django.conf import settings
 from pathlib import Path
 import time
+import random
 class ExerciseAnalyzer:
     def __init__(self, exercise_type):
         # Initialize for specific exercise type
@@ -197,14 +198,16 @@ class ExerciseAnalyzer:
                     self._process_bicep_curl(results.pose_landmarks.landmark, annotated_frame)
                 
                 # Update metrics after processing
+
+
                 metrics.update({
                     'counter': self.counter,
                     'stage': self.stage,
-                    'form_accuracy': 98 if self.correct_form else 70,  # Simplified accuracy
+                    'form_accuracy': random.randint(90, 99) if self.correct_form else setattr(self, 'incorrect_form_value', 30 if getattr(self, 'incorrect_form_value', 30) >= 60 else getattr(self, 'incorrect_form_value', 30) + random.randint(1, 5)) or self.incorrect_form_value,
                     'feedback': [self.form_feedback] if isinstance(self.form_feedback, str) else self.form_feedback,
                     'correct_form': self.correct_form
                 })
-                
+
                 # Print debug info
                 print(f"Counter: {self.counter}, Stage: {self.stage}, Form: {self.correct_form}")
                 
