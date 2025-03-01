@@ -203,7 +203,7 @@ class ExerciseAnalyzer:
                 metrics.update({
                     'counter': self.counter,
                     'stage': self.stage,
-                    'form_accuracy': random.randint(90, 99) if self.correct_form else setattr(self, 'incorrect_form_value', 30 if getattr(self, 'incorrect_form_value', 30) >= 80 else getattr(self, 'incorrect_form_value', 30) + random.randint(1, 5)) or self.incorrect_form_value,
+                    'form_accuracy': random.randint(90, 99) if self.correct_form else setattr(self, 'incorrect_form_value', 30 if getattr(self, 'incorrect_form_value', 30) >= 60 else getattr(self, 'incorrect_form_value', 30) + random.randint(1, 5)) or self.incorrect_form_value,
                     'feedback': [self.form_feedback] if isinstance(self.form_feedback, str) else self.form_feedback,
                     'correct_form': self.correct_form
                 })
