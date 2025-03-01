@@ -65,7 +65,7 @@ class ExerciseAnalysisConsumer(AsyncWebsocketConsumer):
                     processed_frame, metrics = self.analyzer.process_frame(frame)
                     
                     # Debug print
-                    print(f"Frame processed - Counter: {metrics['counter']}, Stage: {metrics['stage']}")
+                   #print(f"Frame processed - Counter: {metrics['counter']}, Stage: {metrics['stage']}")
                     
                     # Encode processed frame
                     _, buffer = cv2.imencode('.jpg', processed_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
@@ -129,6 +129,7 @@ class ExerciseAnalysisConsumer(AsyncWebsocketConsumer):
         # Extract keypoints for model
         keypoints = self.extract_keypoints(landmarks)
         prediction = self.model.predict(keypoints, verbose=0)[0][0]
+        print(f"Raw prediction: {prediction}")
         form_accuracy = float(prediction * 100)
         
         if angle > 160 and self.stage != "down":
@@ -171,7 +172,7 @@ class ExerciseAnalysisConsumer(AsyncWebsocketConsumer):
             'stage': self.stage,
             'angle': int(angle),
             'form_accuracy': form_accuracy,
-            'feedback': self._get_squat_feedback(angle, prediction)
+            'feedback': self._get_feedback(angle, prediction)
         }
 
     def _analyze_plank(self, landmarks):
@@ -196,7 +197,7 @@ class ExerciseAnalysisConsumer(AsyncWebsocketConsumer):
             'duration': self.duration,
             'angle': int(angle),
             'form_accuracy': form_accuracy,
-            'feedback': self._get_plank_feedback(angle, prediction)
+            'feedback': self._get_feedback(angle, prediction)
         }
 
     def _analyze_pushup(self, landmarks):
@@ -223,7 +224,7 @@ class ExerciseAnalysisConsumer(AsyncWebsocketConsumer):
             'stage': self.stage,
             'angle': int(angle),
             'form_accuracy': form_accuracy,
-            'feedback': self._get_pushup_feedback(angle, prediction)
+            'feedback': self._get_feedback(angle, prediction)
         }
 
     def _analyze_lunge(self, landmarks):
@@ -249,7 +250,7 @@ class ExerciseAnalysisConsumer(AsyncWebsocketConsumer):
             'stage': self.stage,
             'angle': int(angle),
             'form_accuracy': form_accuracy,
-            'feedback': self._get_lunge_feedback(angle, prediction)
+            'feedback': self._get_feedback(angle, prediction)
         }
 
     def _get_feedback(self, angle, prediction):
