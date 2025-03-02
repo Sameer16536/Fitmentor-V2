@@ -22,7 +22,8 @@ class ExerciseAnalyzer:
         # Load ML model
         ml_models_dir = Path(settings.BASE_DIR) / 'exercises' / 'ml_models'
         self.model_paths = {
-            'bicep_curls': str(ml_models_dir / 'bicep_model.h5'),
+            # 'bicep_curls': str(ml_models_dir / 'bicep_model.h5'),
+            'bicep_curls': str(ml_models_dir / 'bicep_dp.h5'),
             'pushups': str(ml_models_dir / 'pushups_model.h5'),
             'squats': str(ml_models_dir / 'squats_model.h5'),
             'lunges': str(ml_models_dir / 'lunges_model.h5'),
