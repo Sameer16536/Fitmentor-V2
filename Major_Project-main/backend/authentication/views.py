@@ -5,10 +5,12 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.contrib.auth import authenticate
-from .models import User, UserStats
+from .models import User, UserStats, PasswordResetOTP
 from .serializers import UserSerializer, UserStatsSerializer, UserSettingsSerializer
 from rest_framework.views import APIView
 from django.utils import timezone
+import random
+from django.core.mail import send_mail
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -82,6 +84,65 @@ def logout_user(request):
             'error': str(e),
             'message': 'Logout failed'
         }, status=status.HTTP_400_BAD_REQUEST)
+        
+@api_view(['PUT'])
+def reset_password(request):
+    try:
+        user = User.objects.get(email=request.data['email'])
+        user.set_password(request.data['new_password'])
+        user.save()
+        return Response({'message': 'Password reset successfully'}, status=status.HTTP_200_OK)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def send_reset_otp(request):
+    try:
+        email = request.data.get('email')
+        user = User.objects.get(email=email)
+        
+        # Generate a 6-digit OTP
+        otp = f"{random.randint(100000, 999999)}"
+        
+        # Save OTP to the database
+        PasswordResetOTP.objects.update_or_create(user=user, defaults={'otp': otp})
+        
+        # Send OTP via email
+        send_mail(
+            subject="Password Reset OTP",
+            message=f"Your OTP for password reset is: {otp}",
+            from_email="noreply@fitmentor.com",
+            recipient_list=[email],
+        )
+        
+        return Response({'message': 'OTP sent to your email'}, status=status.HTTP_200_OK)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_reset_otp(request):
+    try:
+        email = request.data.get('email')
+        otp = request.data.get('otp')
+        user = User.objects.get(email=email)
+        reset_otp = PasswordResetOTP.objects.get(user=user)
+        
+        # Check if OTP matches
+        if reset_otp.otp == otp:
+            return Response({'message': 'OTP verified'}, status=status.HTTP_200_OK)
+        return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    except PasswordResetOTP.DoesNotExist:
+        return Response({'error': 'OTP not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
 def get_user_stats(request):

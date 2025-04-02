@@ -123,13 +123,27 @@ const Login = () => {
                         >
                             Sign In
                         </Button>
+
+                        <Button 
+                            fullWidth
+                            variant="text"
+                            size="small"
+                            sx={{ color: 'text.secondary', mb: 2 }}
+                            component={Link}
+                            to="/forgot-password"
+                            onClick={() => setError("")}
+                        >
+                            Forgot Password?
+                        </Button>
                     </form>
+
 
                     <Divider sx={{ my: 3, bgcolor: 'rgba(255, 255, 255, 0.12)' }}>
                         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                             OR
                         </Typography>
                     </Divider>
+                    
 
                     <Button
                         fullWidth

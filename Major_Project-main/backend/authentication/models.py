@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.conf import settings  # Import settings for AUTH_USER_MODEL
 
 class UserManager(BaseUserManager):
     def create_user(self, email, username, password=None, **extra_fields):
@@ -20,6 +21,14 @@ class UserManager(BaseUserManager):
         user.set_password(password)
         user.save(using=self._db)
         return user
+    
+class PasswordResetOTP(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='password_reset_otp')
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"OTP for {self.user.email}"
 
 class User(AbstractUser):
     email = models.EmailField(unique=True)
@@ -100,6 +109,8 @@ class UserStats(models.Model):
         self.current_streak = current_streak
         self.last_workout_date = timezone.now().date()
         self.save()
+
+
 
 @receiver(post_save, sender=User)
 def create_user_stats(sender, instance, created, **kwargs):

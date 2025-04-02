@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from '@mui/material/styles';
@@ -14,6 +14,9 @@ import VideoAnalysis from './components/VideoAnalysis';
 import NavBar from './components/Navbar';
 import ExercisesList from './pages/ExercisesList';
 import Guide from './pages/Guide';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPassword';
+
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
@@ -48,6 +51,8 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route
               path="/dashboard"
               element={
@@ -108,5 +113,6 @@ function App() {
     </ThemeProvider>
   );
 }
+
 
 export default App;
