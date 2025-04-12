@@ -26,13 +26,16 @@ export const ForgotPasswordPage = () => {
             setError("Please enter a valid email address.");
         } else {
             try {
-                await APIUtility.sendResetOTP({ email });
+                const response  =  await APIUtility.sendResetOTP({ email });
                 setSuccess("OTP has been sent to your email.");
+                console.log("OTP sent response:", response); // Log the response for debugging
+                localStorage.setItem("resetEmail", email); // Store email in localStorage
                 setTimeout(() => {
                     navigate("/reset-password"); // Redirect to reset password page
                 }, 3000); // Redirect after 3 seconds
             } catch (err) {
                 setError(err.response?.data?.error || "Failed to send OTP.");
+                console.error("Error sending OTP:", err);
             }
         }
     };

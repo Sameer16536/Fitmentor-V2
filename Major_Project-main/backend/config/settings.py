@@ -131,8 +131,10 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.IsAuthenticated',  # Default is authenticated
     ],
+    # Add this to ensure unauthenticated requests are not blocked globally
+    'UNAUTHENTICATED_USER': None,
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
     'NON_FIELD_ERRORS_KEY': 'error',
 }
@@ -221,3 +223,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+# Email Configuration
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development, use console backend to print emails to console
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST')  # Ensure this is your Gmail address
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_PASS')  # Ensure this is the App Password

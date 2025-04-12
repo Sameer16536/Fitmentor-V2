@@ -21,7 +21,7 @@ class UserManager(BaseUserManager):
         user.set_password(password)
         user.save(using=self._db)
         return user
-    
+
 class PasswordResetOTP(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='password_reset_otp')
     otp = models.CharField(max_length=6)
@@ -115,10 +115,10 @@ class UserStats(models.Model):
 @receiver(post_save, sender=User)
 def create_user_stats(sender, instance, created, **kwargs):
     if created:
-        UserStats.objects.create(user=instance)
+        # Only create UserStats if it doesn't already exist
+        UserStats.objects.get_or_create(user=instance)
 
 @receiver(post_save, sender=User)
 def save_user_stats(sender, instance, **kwargs):
-    if not hasattr(instance, 'stats'):
-        UserStats.objects.create(user=instance)
-    instance.stats.save()
+    if hasattr(instance, 'stats'):
+        instance.stats.save()

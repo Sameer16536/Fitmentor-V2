@@ -240,23 +240,23 @@ export const APIUtility = {
     }),
 
   sendResetOTP: (body) =>
-    apiCall({
-      method: "POST",
-      url: "/api/auth/send-reset-otp/",
-      data: body,
-    }),
+    axios.post(`${IP_ADDRESS_BACKEND}/api/auth/send-reset-otp/`, body, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then(response => response.data),
 
   verifyResetOTP: (body) =>
-    apiCall({
-      method: "POST",
-      url: "/api/auth/verify-reset-otp/",
-      data: body,
-    }),
+    axios.post(`${IP_ADDRESS_BACKEND}/api/auth/verify-reset-otp/`, body, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then(response => response.data),
 
   resetPassword: (body) =>
-    apiCall({
-      method: "PUT",
-      url: "/api/auth/reset-password/",
-      data: body,
-    }),
+    axios.put(`${IP_ADDRESS_BACKEND}/api/auth/reset-password/`, body, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then(response => response.data),
 };

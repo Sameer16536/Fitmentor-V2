@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     Box,
@@ -20,12 +20,21 @@ export const ResetPasswordPage = () => {
     const [email, setEmail] = useState(""); // Add email input for verification
     const navigate = useNavigate();
 
+    useEffect(() => {
+        const storedEmail = localStorage.getItem("resetEmail");
+        if (storedEmail) {
+            setEmail(storedEmail); // Prefill email from localStorage
+        } else {
+            navigate("/forgot-password"); // Redirect back if no email is found
+        }
+    }, [navigate]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
         setSuccess("");
 
-        if (!email || !otp || !password || !confirmPassword) {
+        if (!otp || !password || !confirmPassword) {
             setError("Please fill in all fields.");
         } else if (password !== confirmPassword) {
             setError("Passwords do not match.");
@@ -38,6 +47,7 @@ export const ResetPasswordPage = () => {
                 await APIUtility.resetPassword({ email, new_password: password });
 
                 setSuccess("Password has been reset successfully.");
+                localStorage.removeItem("resetEmail"); // Clear email from localStorage
                 setTimeout(() => {
                     navigate("/login"); // Redirect to login page
                 }, 3000); // Redirect after 3 seconds
@@ -95,7 +105,7 @@ export const ResetPasswordPage = () => {
                             label="Email Address"
                             type="email"
                             value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            disabled // Disable the email field
                             required
                             sx={{ mb: 3 }}
                         />

@@ -86,6 +86,7 @@ def logout_user(request):
         }, status=status.HTTP_400_BAD_REQUEST)
         
 @api_view(['PUT'])
+@permission_classes([AllowAny])
 def reset_password(request):
     try:
         user = User.objects.get(email=request.data['email'])
@@ -98,10 +99,19 @@ def reset_password(request):
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([AllowAny])  # Allow unauthenticated access
 def send_reset_otp(request):
     try:
+        # Debug log to confirm the view is being accessed
+        print("send_reset_otp view accessed")
+        
+        # Debug log to inspect request data
+        print("Request data:", request.data)
+        
         email = request.data.get('email')
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
         user = User.objects.get(email=email)
         
         # Generate a 6-digit OTP
@@ -122,10 +132,11 @@ def send_reset_otp(request):
     except User.DoesNotExist:
         return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
+        print("Error in send_reset_otp:", str(e))  # Debug log for unexpected errors
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([AllowAny])  # Allow unauthenticated access
 def verify_reset_otp(request):
     try:
         email = request.data.get('email')
